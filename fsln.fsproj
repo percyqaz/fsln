@@ -8,7 +8,13 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="SolutionTree.fs" />
         <Compile Include="Program.fs"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="matkoch.Microsoft.VisualStudio.SolutionPersistence" Version="1.0.61" />
+      <PackageReference Include="Microsoft.Build" Version="18.6.3" />
     </ItemGroup>
 
 </Project>
