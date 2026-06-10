@@ -6,7 +6,10 @@
     <ToolCommandName>fsln</ToolCommandName>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="SolutionTree.fs" />
+    <Compile Include="FileTree.fs" />
+    <Compile Include="Load.fs" />
+    <Compile Include="Operations.fs" />
+    <Compile Include="Interactive.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

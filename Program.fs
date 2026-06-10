@@ -22,14 +22,15 @@ let walk_tree_specific_filetypes(targets: string array) : string option =
     result
 
 [<EntryPoint>]  
-let main (_: string array) : int =
+let main (argv: string array) : int =
     let sln =
         walk_tree_specific_filetypes [|".slnx"; ".sln"|]
     match sln with
     | None -> 1
     | Some solution_path ->
-        let solution = SolutionTree.read_solution_file(solution_path)
-        TreeOperations.render solution
-        TreeOperations.move_file_up(solution.Projects.[0], "/home/deck/Desktop/Source/fsln/Program.fs")
-        TreeOperations.render solution
+        let solution = SolutionLoader.read_solution_file(solution_path)
+        if argv.Length > 0 && argv.[0] = "-i" then
+            Interactive.loop solution
+        else
+            Operations.render solution
         0
