@@ -1,4 +1,5 @@
 ﻿open System.IO
+open fsln
 
 let walk_tree_specific_file(target: string) : string option =
     let mutable current_path = Path.GetFullPath(".")
@@ -26,20 +27,9 @@ let main (_: string array) : int =
         walk_tree_specific_filetypes [|".slnx"; ".sln"|]
     match sln with
     | None -> 1
-    | Some solution ->
-        
-        let rec print_fs (depth: int, entry: fsln.FileTreeEntry) =
-            match entry with
-            | fsln.File x -> printfn "  %s%s" (String.replicate depth "  ") x.Name
-            | fsln.Folder f ->
-                printfn "  %s%s/" (String.replicate depth "  ") f.Name
-                for e in f.Children do
-                    print_fs(depth + 1, e)
-                    
-        let sln = fsln.SolutionTree.read_solution_file(solution)
-        printfn "[*] %s" sln.Name
-        for project in sln.Projects do
-            printfn " [>] %s" project.Name
-            for f in project.Children do
-                print_fs(0, f)
+    | Some solution_path ->
+        let solution = SolutionTree.read_solution_file(solution_path)
+        TreeOperations.render solution
+        TreeOperations.insert_after(solution.Projects.[0], "/home/deck/Desktop/Source/fsln/SolutionTree.fs", "NewFile.fs")
+        TreeOperations.render solution
         0
