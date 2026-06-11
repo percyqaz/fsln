@@ -17,10 +17,18 @@ module Interactive =
             Solution: Solution
             mutable Expanded: Set<string>
             mutable Selected: Selection
+            mutable Buffer: string
         }
         member this.IsExpanded(folder: FileTreeFolder) : bool = this.Expanded.Contains folder.FullPath
         member this.IsExpanded(project: Project) : bool = this.Expanded.Contains project.FullPath
-        static member Create(solution: Solution) : State = { Running = true; Solution = solution; Expanded = Set.empty; Selected = Selection.Solution solution }
+        static member Create(solution: Solution) : State =
+            {
+                Running = true
+                Solution = solution
+                Expanded = Set.empty
+                Selected = Selection.Solution solution
+                Buffer = ""
+            }
         
     let private previous<'t>(siblings: ResizeArray<'t>, child: 't) : 't option =
         let index = siblings.IndexOf(child)
@@ -175,24 +183,64 @@ module Interactive =
             if state.IsExpanded project then
                 for f in project.Children do
                     print_fs(0, f)
+                    
+    let key_to_buffer(state: State) : unit =
+        let input = Console.ReadKey(true)
+        
+        if input.Key = ConsoleKey.Backspace then
+            if state.Buffer.EndsWith(">") then
+                let p = state.Buffer.LastIndexOf("<")
+                if p >= 0 then
+                    state.Buffer <- state.Buffer.Substring(0, p)
+                else
+                    state.Buffer <- state.Buffer.Substring(0, state.Buffer.Length - 1)
+            elif state.Buffer <> "" then
+                state.Buffer <- state.Buffer.Substring(0, state.Buffer.Length - 1)
+        
+        elif input.Modifiers &&& ConsoleModifiers.Control = ConsoleModifiers.Control then
+            ()
+                
+        elif input.Key = ConsoleKey.Escape then
+            state.Buffer <- state.Buffer + "<Esc>"
+        elif input.KeyChar <> '\u0000' && Char.IsAscii(input.KeyChar) && not (Char.IsWhiteSpace(input.KeyChar))  then
+            if input.Modifiers &&& ConsoleModifiers.Alt = ConsoleModifiers.Alt then
+                state.Buffer <- state.Buffer + sprintf "<A-%c>" input.KeyChar
+            else
+                state.Buffer <- state.Buffer + input.KeyChar.ToString()
+        elif input.Key <> ConsoleKey.None then
+            let key =
+                match input.Key with
+                | ConsoleKey.LeftArrow -> "Left"
+                | ConsoleKey.RightArrow -> "Right"
+                | ConsoleKey.UpArrow -> "Up"
+                | ConsoleKey.DownArrow -> "Down"
+                | otherwise -> otherwise.ToString()
+            let alt = if input.Modifiers &&& ConsoleModifiers.Alt = ConsoleModifiers.Alt then "A-" else ""
+            state.Buffer <- state.Buffer + sprintf "<%s%s>" alt key
+            
+    let consume_buffer(state: State, keymap: string, action: unit -> unit) =
+        if state.Buffer = keymap then
+            action()
+            state.Buffer <- ""
     
     let loop (solution: Solution) : unit =
         let state = State.Create(solution)
         while state.Running do
             Console.Clear()
             render state
-            match state.Selected with
-            | Selection.Solution s -> printfn "SLN %s" s.FullPath
-            | Selection.Project s -> printfn "Project %s" s.FullPath
-            | Selection.Folder s -> printfn "Folder %s" s.FullPath
-            | Selection.File s -> printfn "File %s" s.FullPath
-            let input = Console.ReadKey(true)
-            printfn "%A+%A" input.Modifiers input.Key
-            if input.Key = ConsoleKey.UpArrow then
-                state.Selected <- navigate_up(state)
-            if input.Key = ConsoleKey.DownArrow then
-                state.Selected <- navigate_down(state)
-            if input.Key = ConsoleKey.RightArrow then
-                expand_selected(state)
-            if input.Key = ConsoleKey.LeftArrow then
-                collapse_selected(state)
+            printfn "%s" state.Buffer
+            key_to_buffer(state)
+            if state.Buffer.EndsWith "<Esc>" then
+                if state.Buffer = "<Esc>" then
+                    state.Running <- false
+                else
+                    state.Buffer <- ""
+                    
+            consume_buffer(state, "<Left>", fun () -> collapse_selected(state))
+            consume_buffer(state, "h", fun () -> collapse_selected(state))
+            consume_buffer(state, "<Down>", fun () -> state.Selected <- navigate_down(state))
+            consume_buffer(state, "j", fun () -> state.Selected <- navigate_down(state))
+            consume_buffer(state, "<Up>", fun () -> state.Selected <- navigate_up(state))
+            consume_buffer(state, "k", fun () -> state.Selected <- navigate_up(state))
+            consume_buffer(state, "<Right>", fun () -> expand_selected(state))
+            consume_buffer(state, "l", fun () -> expand_selected(state))
