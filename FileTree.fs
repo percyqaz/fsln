@@ -3,19 +3,32 @@ namespace fsln
 open Microsoft.Build.Construction
 
 // https://git-scm.com/docs/git-status
-    
-type FileTreeFile =
+
+[<RequireQualifiedAccess>]
+type Parent =
+    | Project of Project
+    | Folder of FileTreeFolder
+    member this.Children =
+        match this with
+        | Project p -> p.Children
+        | Folder f -> f.Children
+    member this.AddChild(child: FileTreeEntry) =
+        this.Children.Add(child.WithParent(this))
+
+and FileTreeFile =
     {
         Name: string
         FullPath: string
         ProjectItemElement: ProjectItemElement
+        Parent: Parent
     }
     
-type FileTreeFolder =
+and FileTreeFolder =
     {
         Name: string
         FullPath: string
         Children: ResizeArray<FileTreeEntry>
+        Parent: Parent
     }
     
     member this.EnumerateFiles() : FileTreeFile seq =
@@ -29,36 +42,22 @@ type FileTreeFolder =
 and FileTreeEntry =
     | File of FileTreeFile
     | Folder of FileTreeFolder
+    member this.Parent =
+        match this with
+        | File f -> f.Parent
+        | Folder f -> f.Parent
+    member this.WithParent(parent: Parent) =
+        match this with
+        | File f -> File { f with Parent = parent }
+        | Folder f -> Folder { f with Parent = parent }
     
-type Project =
+and Project =
     {
         Name: string
         FullPath: string
         ProjectRootElement: ProjectRootElement
         Children: ResizeArray<FileTreeEntry>
     }
-    
-    member this.FindFileAndSiblings(full_file_path: string) : (FileTreeFile * ResizeArray<FileTreeEntry>) option =
-        let rec search (search_space: ResizeArray<FileTreeEntry>) =
-            let mutable found = None
-            for entry in search_space do
-                match entry with
-                | File f when f.FullPath = full_file_path -> found <- Some (f, search_space)
-                | File _ -> ()
-                | Folder f -> if found.IsNone then found <- search f.Children
-            found
-        search this.Children
-        
-    member this.FindFolderAndSiblings(full_path: string) : (FileTreeFolder * ResizeArray<FileTreeEntry>) option =
-        let rec search (search_space: ResizeArray<FileTreeEntry>) =
-            let mutable found = None
-            for entry in search_space do
-                match entry with
-                | File _ -> ()
-                | Folder f when f.FullPath = full_path -> found <- Some (f, search_space)
-                | Folder f -> if found.IsNone then found <- search f.Children
-            found
-        search this.Children
     
 type Solution =
     {

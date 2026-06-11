@@ -21,7 +21,7 @@ let walk_tree_specific_filetypes(targets: string array) : string option =
         current_path <- Path.GetDirectoryName(current_path)
     result
 
-[<EntryPoint>]  
+[<EntryPoint>]
 let main (argv: string array) : int =
     let sln =
         walk_tree_specific_filetypes [|".slnx"; ".sln"|]
