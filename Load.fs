@@ -28,35 +28,46 @@ module SolutionLoader =
             let child_path = if Path.EndsInDirectorySeparator(child_path) then child_path else child_path + Path.AltDirectorySeparatorChar.ToString()
             child_path <> parent_path && child_path.StartsWith(parent_path)
             
-        let nested_file(relative_to: string, file_path: string, element: ProjectItemElement, parent: Parent) : FileTreeEntry =
-            let mutable addition = File { Name = Path.GetFileName(file_path); FullPath = file_path; ProjectItemElement = element; Parent = parent }
-            let mutable containing_folder = Path.GetDirectoryName(file_path)
-            while is_subdirectory(relative_to, containing_folder) do
-                let new_folder = { Name = Path.GetFileName(containing_folder); FullPath = containing_folder; Children = ResizeArray(); Parent = parent }
-                new_folder.Children.Add(addition.WithParent(Parent.Folder new_folder))
-                addition <- Folder new_folder
-                containing_folder <- Path.GetDirectoryName(containing_folder)
-            addition
+        let create_folder(target: Parent, folder_name: string) =
+            let parent_path =
+                match target with
+                | Parent.Project _ -> project_containing_folder
+                | Parent.Folder folder -> folder.FullPath
+                
+            let new_folder_path = Path.Combine(parent_path, folder_name).Replace('\\', Path.AltDirectorySeparatorChar)
+            { Name = folder_name; FullPath = new_folder_path; Children = ResizeArray(); Parent = target }
             
-        let rec merge_trees(target: Parent, item: FileTreeEntry) =
-            match item with
-            | File _ -> target.AddChild(item)
-            | Folder _ when target.Children.Count = 0 -> target.AddChild(item)
-            | Folder f ->
+        let rec merge_trees(target: Parent, remaining_segments: string list, file_name: string, file_path: string, element: ProjectItemElement) =
+            match remaining_segments with
+            | [] ->
+                target.Children.Add(File { Name = file_name; FullPath = file_path; ProjectItemElement = element; Parent = target })
+            | folder :: remaining when target.Children.Count > 0 ->
                 let last = target.Children.[target.Children.Count - 1]
                 match last with
-                | File _ -> target.AddChild(item)
-                | Folder m when m.FullPath = f.FullPath ->
-                    merge_trees(Parent.Folder m, f.Children.[0])
-                | Folder _ ->
-                    target.AddChild(item)
+                | Folder merge_folder when merge_folder.Name = folder ->
+                    merge_trees(Parent.Folder merge_folder, remaining, file_name, file_path, element)
+                | _ ->
+                    let new_folder = create_folder(target, folder)
+                    target.Children.Add(Folder new_folder)
+                    merge_trees(Parent.Folder new_folder, remaining, file_name, file_path, element)
+            | folder :: remaining ->
+                let new_folder = create_folder(target, folder)
+                target.Children.Add(Folder new_folder)
+                merge_trees(Parent.Folder new_folder, remaining, file_name, file_path, element)
             
         for item_group in project_file.ItemGroups do
             for property in item_group.Items do
                 if property.ElementName = "Compile" || property.ElementName = "None" || property.ElementName = "EmbeddedResource" then
                     let file_path = normalise_path(Path.Combine(project_containing_folder, property.Include))
                     if is_subdirectory(project_containing_folder, file_path) then
-                        merge_trees(Parent.Project project, nested_file(project_containing_folder, file_path, property, Parent.Project project))
+                        let relative_path_segments =
+                            Path.GetDirectoryName(file_path)
+                                .Replace(project_containing_folder, "")
+                                .Split(Path.AltDirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries)
+                            |> List.ofArray
+                                
+                        let file_name = Path.GetFileName(file_path)
+                        merge_trees(Parent.Project project, relative_path_segments, file_name, file_path, property)
                     else
                         failwithf "'%s' is outside the project folder for '%s'!" file_path project_containing_folder
                         

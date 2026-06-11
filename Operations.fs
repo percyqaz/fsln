@@ -8,7 +8,7 @@ module Operations =
     let render(solution: Solution) : unit =
         let rec print_fs (depth: int, entry: FileTreeEntry) =
             match entry with
-            | File x -> printfn "  %s%s" (String.replicate depth "  ") x.FullPath
+            | File x -> printfn "  %s%s" (String.replicate depth "  ") x.Name
             | Folder f ->
                 printfn "  %s%s/" (String.replicate depth "  ") f.Name
                 for e in f.Children do
@@ -23,8 +23,8 @@ module Operations =
     let insert_below(project: Project, existing_file: FileTreeFile, name: string) =
         // todo: slashes in the file name should create folders
         // todo: if the file already exists, do nothing
-        
         let name = name.Replace('\\', Path.AltDirectorySeparatorChar).Replace("..", "").Replace("//", "")
+        // todo: review this path.combine on windows vs unix
         let added_item_full_path = Path.Combine(Path.GetDirectoryName(existing_file.FullPath), name)
         let added_item_relative_path =
             added_item_full_path

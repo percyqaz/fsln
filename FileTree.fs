@@ -33,10 +33,20 @@ and FileTreeFolder =
     
     member this.EnumerateFiles() : FileTreeFile seq =
         seq {
-            for f in this.Children do
-                match f with
-                | File x -> yield x
-                | Folder y -> yield! y.EnumerateFiles()
+            for child in this.Children do
+                match child with
+                | File file -> yield file
+                | Folder folder -> yield! folder.EnumerateFiles()
+        }
+    
+    member this.EnumerateSubfolders() : FileTreeFolder seq =
+        seq {
+            for child in this.Children do
+                match child with
+                | File _ -> ()
+                | Folder folder ->
+                    yield folder
+                    yield! folder.EnumerateSubfolders()
         }
     
 and FileTreeEntry =
@@ -58,6 +68,24 @@ and Project =
         ProjectRootElement: ProjectRootElement
         Children: ResizeArray<FileTreeEntry>
     }
+    
+    member this.EnumerateFiles() : FileTreeFile seq =
+        seq {
+            for child in this.Children do
+                match child with
+                | File file -> yield file
+                | Folder folder -> yield! folder.EnumerateFiles()
+        }
+        
+    member this.EnumerateSubfolders() : FileTreeFolder seq =
+        seq {
+            for child in this.Children do
+                match child with
+                | File _ -> ()
+                | Folder folder ->
+                    yield folder
+                    yield! folder.EnumerateSubfolders()
+        }
     
 type Solution =
     {

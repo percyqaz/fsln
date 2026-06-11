@@ -18,9 +18,9 @@ module Interactive =
             mutable Expanded: Set<string>
             mutable Selected: Selection
         }
-        member this.IsExpanded(folder: FileTreeFolder) = this.Expanded.Contains folder.FullPath
-        member this.IsExpanded(project: Project) = this.Expanded.Contains project.FullPath
-        static member Create(solution: Solution) = { Running = true; Solution = solution; Expanded = Set.empty; Selected = Selection.Solution solution }
+        member this.IsExpanded(folder: FileTreeFolder) : bool = this.Expanded.Contains folder.FullPath
+        member this.IsExpanded(project: Project) : bool = this.Expanded.Contains project.FullPath
+        static member Create(solution: Solution) : State = { Running = true; Solution = solution; Expanded = Set.empty; Selected = Selection.Solution solution }
         
     let private previous<'t>(siblings: ResizeArray<'t>, child: 't) : 't option =
         let index = siblings.IndexOf(child)
@@ -54,7 +54,9 @@ module Interactive =
             | Parent.Project project -> 
                 match next(state.Solution.Projects, project) with
                 | Some project_below -> Selection.Project project_below
-                | None -> state.Selected // todo: not use this
+                // todo: None/Some pattern instead of returning current selection here, so this function can be used
+                // todo: rn this function is only correct when `current` is what's selected
+                | None -> state.Selected
             | Parent.Folder folder ->
                 find_next_in_tree(state, Folder folder)
             
@@ -77,8 +79,8 @@ module Interactive =
             | Some entry_above -> bottom_child_tree(state, entry_above)
             | None ->
                 match file.Parent with
-                | Parent.Folder parent -> Selection.Folder parent
-                | Parent.Project project -> Selection.Project project
+                | Parent.Folder parent_folder -> Selection.Folder parent_folder
+                | Parent.Project parent_project -> Selection.Project parent_project
             
     let navigate_down(state: State) : Selection =
         match state.Selected with
@@ -101,17 +103,44 @@ module Interactive =
                 find_next_in_tree(state, Folder folder)
         | Selection.File file -> find_next_in_tree(state, File file)
         
-    let expand_selected(state: State) =
+    let navigate_out(state: State) : Selection =
+        match state.Selected with
+        | Selection.Solution solution -> Selection.Solution solution
+        | Selection.Project _ -> Selection.Solution state.Solution
+        | Selection.Folder folder ->
+            match folder.Parent with
+            | Parent.Folder parent_folder -> Selection.Folder parent_folder
+            | Parent.Project parent_project -> Selection.Project parent_project
+        | Selection.File file ->
+            match file.Parent with
+            | Parent.Folder parent_folder -> Selection.Folder parent_folder
+            | Parent.Project parent_project -> Selection.Project parent_project
+        
+    let expand_selected(state: State) : unit =
         match state.Selected with
         | Selection.Solution _ -> ()
         | Selection.Project project -> state.Expanded <- state.Expanded.Add(project.FullPath)
         | Selection.Folder folder -> state.Expanded <- state.Expanded.Add(folder.FullPath)
         | Selection.File _ -> ()
         
-    let collapse_selected(state: State) =
-        // todo: collapse subfolders too
-        // todo: move selection to a visible parent
-        ()
+    let rec collapse_selected(state: State) : unit =
+        match state.Selected with
+        | Selection.Solution _ -> ()
+        | Selection.Project project ->
+            state.Expanded <- state.Expanded.Remove(project.FullPath)
+            for subfolder in project.EnumerateSubfolders() do
+                state.Expanded <- state.Expanded.Remove(subfolder.FullPath)
+        | Selection.Folder folder ->
+            if state.IsExpanded folder then
+                state.Expanded <- state.Expanded.Remove(folder.FullPath)
+                for subfolder in folder.EnumerateSubfolders() do
+                    state.Expanded <- state.Expanded.Remove(subfolder.FullPath)
+            else
+                state.Selected <- navigate_out(state)
+                collapse_selected(state)
+        | Selection.File _ -> 
+            state.Selected <- navigate_out(state)
+            collapse_selected(state)
 
     let render(state: State) : unit =
         let rec print_fs (depth: int, entry: FileTreeEntry) =
@@ -147,11 +176,16 @@ module Interactive =
                 for f in project.Children do
                     print_fs(0, f)
     
-    let loop (solution: Solution) =
+    let loop (solution: Solution) : unit =
         let state = State.Create(solution)
         while state.Running do
             Console.Clear()
             render state
+            match state.Selected with
+            | Selection.Solution s -> printfn "SLN %s" s.FullPath
+            | Selection.Project s -> printfn "Project %s" s.FullPath
+            | Selection.Folder s -> printfn "Folder %s" s.FullPath
+            | Selection.File s -> printfn "File %s" s.FullPath
             let input = Console.ReadKey(true)
             printfn "%A+%A" input.Modifiers input.Key
             if input.Key = ConsoleKey.UpArrow then
@@ -160,3 +194,5 @@ module Interactive =
                 state.Selected <- navigate_down(state)
             if input.Key = ConsoleKey.RightArrow then
                 expand_selected(state)
+            if input.Key = ConsoleKey.LeftArrow then
+                collapse_selected(state)
