@@ -20,14 +20,17 @@ module Operations =
             for f in project.Children do
                 print_fs(0, f)
     
-    let insert_after(project: Project, existing_full_file_path: string, name: string) =
+    let insert_below(project: Project, existing_full_file_path: string, name: string) =
         // todo: slashes in the file name should create folders
-        // todo: .. in the file name should be disallowed
         // todo: if the file already exists, do nothing
+        let name = name.Replace('\\', Path.AltDirectorySeparatorChar).Replace("..", "").Replace("//", "")
         match project.FindFileAndSiblings(existing_full_file_path) with
         | Some (file, siblings) ->
             let added_item_full_path = Path.Combine(Path.GetDirectoryName(existing_full_file_path), name)
-            let added_item_relative_path = added_item_full_path.Replace(Path.GetDirectoryName(project.FullPath) + Path.AltDirectorySeparatorChar.ToString(), "")
+            let added_item_relative_path =
+                added_item_full_path
+                    .Replace(Path.GetDirectoryName(project.FullPath) + Path.AltDirectorySeparatorChar.ToString(), "")
+                    .Replace('/', '\\')
             let added_item = project.ProjectRootElement.AddItem("Compile", added_item_relative_path)
             let parent = added_item.Parent
             parent.RemoveChild(added_item)
