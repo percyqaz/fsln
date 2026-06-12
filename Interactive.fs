@@ -21,6 +21,7 @@ module Interactive =
             mutable Selected: Selection
             mutable Buffer: string
             mutable StatusLine: string
+            Keymap: ResizeArray<string * string>
         }
         member this.IsExpanded(folder: FileTreeFolder) : bool = this.Expanded.Contains folder.FullPath
         member this.IsExpanded(project: Project) : bool = this.Expanded.Contains project.FullPath
@@ -32,6 +33,7 @@ module Interactive =
                 Selected = Selection.Solution solution
                 Buffer = ""
                 StatusLine = ""
+                Keymap = ResizeArray()
             }
         
     let private previous<'t>(siblings: ResizeArray<'t>, child: 't) : 't option =
@@ -238,26 +240,24 @@ module Interactive =
             let alt = if input.Modifiers &&& ConsoleModifiers.Alt = ConsoleModifiers.Alt then "A-" else ""
             state.Buffer <- state.Buffer + sprintf "<%s%s>" alt key
             
-    let consume_buffer(state: State, keymap: string, action: unit -> unit) =
-        if state.Buffer.StartsWith keymap then
-            action()
-            state.Buffer <- state.Buffer.Substring(keymap.Length)
-            
     let dispatch_shell_command(state: State, command: string) : unit =
-        let shell, first_arg = if OperatingSystem.IsWindows() then "cmd.exe", "-c" else "/bin/sh", "-c"
         let selection_path =
             match state.Selected with
             | Selection.Solution solution -> sprintf "%A" solution.FullPath
             | Selection.Project project -> sprintf "%A" project.FullPath
             | Selection.Folder folder -> sprintf "%A" folder.FullPath
             | Selection.File file -> sprintf "%A" file.FullPath
+            
+        let shell, first_arg = if OperatingSystem.IsWindows() then "cmd.exe", "-c" else "/bin/sh", "-c"
 
         let args =
-            first_arg + " " +
+            first_arg + " \"" +
             command
                 .Replace("$$", '\uFFFD'.ToString())
                 .Replace("$", selection_path)
                 .Replace('\uFFFD', '$')
+                .Replace("\"", "\\\"")
+            + "\""
         let start_info = ProcessStartInfo(shell, args)
         start_info.UseShellExecute <- false
         start_info.CreateNoWindow <- false
@@ -266,26 +266,43 @@ module Interactive =
         let proc = Process.Start(start_info)
         proc.WaitForExit()
         if proc.ExitCode <> 0 then
+            Console.ReadKey(true) |> ignore
             state.StatusLine <- sprintf "(%i)" proc.ExitCode
-        Console.ReadKey(true) |> ignore
+        elif Console.GetCursorPosition() <> struct(0, 0) then
+            Console.ReadKey(true) |> ignore
             
     let dispatch_internal_command(state: State, command: string) : unit =
-        state.StatusLine <- command
+        match command with
+        | "q" | "q!" -> state.Running <- false
+        | "up" -> state.Selected <- navigate_up(state)
+        | "down" -> state.Selected <- navigate_down(state)
+        | "expand" -> expand_selected(state)
+        | "collapse" -> collapse_selected(state)
+        | "move_up" -> move_selection_up(state)
+        | "move_down" -> move_selection_down(state)
+        | "delete" -> ()
+        | _ -> ()
+            
+    let consume_buffer(state: State, shorthand: string, target: string) : unit =
+        if state.Buffer.StartsWith shorthand then
+            state.Buffer <- target + state.Buffer.Substring(shorthand.Length)
         
     let dispatch_keybindings(state: State) : unit =
         
-        consume_buffer(state, "<Left>", fun () -> collapse_selected(state))
-        consume_buffer(state, "h", fun () -> collapse_selected(state))
-        consume_buffer(state, "<Down>", fun () -> state.Selected <- navigate_down(state))
-        consume_buffer(state, "j", fun () -> state.Selected <- navigate_down(state))
-        consume_buffer(state, "<Up>", fun () -> state.Selected <- navigate_up(state))
-        consume_buffer(state, "k", fun () -> state.Selected <- navigate_up(state))
-        consume_buffer(state, "<Right>", fun () -> expand_selected(state))
-        consume_buffer(state, "l", fun () -> expand_selected(state))
-        consume_buffer(state, "<A-j>", fun () -> move_selection_up(state))
-        consume_buffer(state, "<A-Up>", fun () -> move_selection_up(state))
-        consume_buffer(state, "<A-k>", fun () -> move_selection_down(state))
-        consume_buffer(state, "<A-Down>", fun () -> move_selection_down(state))
+        consume_buffer(state, "<Left>", "h")
+        consume_buffer(state, "<Down>", "j")
+        consume_buffer(state, "<Up>", "k")
+        consume_buffer(state, "<Right>", "l")
+        consume_buffer(state, "<A-Down>", "<A-j>")
+        consume_buffer(state, "<A-Up>", "<A-k>")
+        
+        consume_buffer(state, "h", ":collapse<Enter>")
+        consume_buffer(state, "j", ":down<Enter>")
+        consume_buffer(state, "k", ":up<Enter>")
+        consume_buffer(state, "l", ":expand<Enter>")
+        consume_buffer(state, "<A-j>", ":move_down<Enter>")
+        consume_buffer(state, "<A-k>", ":move_up<Enter>")
+        consume_buffer(state, "<Enter>", ":!vim $<Enter>")
             
     let handle_input(state: State) : unit =
         key_to_buffer(state)
