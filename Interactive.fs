@@ -303,21 +303,22 @@ module Interactive =
         consume_buffer(state, "<A-j>", ":move_down<Enter>")
         consume_buffer(state, "<A-k>", ":move_up<Enter>")
         consume_buffer(state, "<Enter>", ":!vim $<Enter>")
+        consume_buffer(state, ".", ":!echo $<Enter>")
+        
+        consume_buffer(state, "<Esc>", ":q<Enter>")
             
     let handle_input(state: State) : unit =
         key_to_buffer(state)
-        if state.Buffer.EndsWith "<Esc>" then
-            if state.Buffer = "<Esc>" then
-                state.Running <- false
-            else
-                state.Buffer <- ""
-                
         dispatch_keybindings(state)
         
-        if state.Buffer.StartsWith ":!" && state.Buffer.EndsWith "<Enter>" then
+        if state.Buffer.EndsWith "<Esc>" then
+            state.Buffer <- ""
+            
+        elif state.Buffer.StartsWith ":!" && state.Buffer.EndsWith "<Enter>" then
             let command = state.Buffer.Substring(2, state.Buffer.Length - 9)
             dispatch_shell_command(state, command)
             state.Buffer <- ""
+            
         elif state.Buffer.StartsWith ":" && state.Buffer.EndsWith "<Enter>" then
             let command = state.Buffer.Substring(1, state.Buffer.Length - 8)
             dispatch_internal_command(state, command)
@@ -327,7 +328,7 @@ module Interactive =
         let state = State.Create(solution)
         while state.Running do
             Console.Clear()
-            render state
+            render(state)
             if state.Buffer <> "" then
                 printfn "%s" state.Buffer
             else
