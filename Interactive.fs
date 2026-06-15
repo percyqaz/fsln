@@ -248,7 +248,7 @@ module Interactive =
             | Selection.Folder folder -> sprintf "%A" folder.FullPath
             | Selection.File file -> sprintf "%A" file.FullPath
             
-        let shell, first_arg = if OperatingSystem.IsWindows() then "cmd.exe", "-c" else "/bin/sh", "-c"
+        let shell, first_arg = if OperatingSystem.IsWindows() then "cmd.exe", "/c" else "/bin/sh", "-c"
 
         let args =
             first_arg + " \"" +
