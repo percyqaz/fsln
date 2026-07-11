@@ -1,6 +1,7 @@
 namespace fsln
 
 open System.IO
+open Microsoft.Build.Construction
 open fsln
 
 module Operations =
@@ -25,6 +26,20 @@ module Operations =
         siblings.Insert(siblings.IndexOf(File existing_file) + 1, File { Name = name; FullPath = added_item_full_path; ProjectItemElement = added_item; Parent = existing_file.Parent })
         File.Create(added_item_full_path).Dispose()
         project.ProjectRootElement.Save()
+        
+    let inline private swap_files_in_project(above_files: ProjectItemElement seq, below_files: ProjectItemElement seq) : unit =
+        let first_above_file = Seq.head above_files
+        let parent = first_above_file.Parent
+        for file in below_files do
+            parent.RemoveChild(file)
+            parent.InsertBeforeChild(file, first_above_file)
+        
+    let inline private merge_folders_if_needed(entry_one: FileTreeEntry, entry_two: FileTreeEntry, siblings: ResizeArray<FileTreeEntry>) : unit =
+        match entry_one, entry_two with
+        | Folder a, Folder b when a.FullPath = b.FullPath ->
+            a.Children.AddRange(b.Children |> Seq.map _.WithParent(Parent.Folder a))
+            siblings.Remove(entry_two) |> ignore
+        | _ -> ()
             
     let move_file_up(project: Project, file: FileTreeFile) : unit =
         let siblings = file.Parent.Children
@@ -34,10 +49,22 @@ module Operations =
             siblings.RemoveAt(folder_pos)
             siblings.Insert(folder_pos - 1, File file)
             
-            let parent = file.ProjectItemElement.Parent
-            let previous_sibling_proj = file.ProjectItemElement.PreviousSibling
-            parent.RemoveChild(file.ProjectItemElement)
-            parent.InsertBeforeChild(file.ProjectItemElement, previous_sibling_proj)
+            let swapped_with = siblings.[folder_pos]
+            match swapped_with with
+            | Folder other_folder ->
+                swap_files_in_project(
+                    other_folder.EnumerateFiles() |> Seq.map _.ProjectItemElement,
+                    [file.ProjectItemElement]
+                )
+            | File other_file ->
+                swap_files_in_project(
+                    [other_file.ProjectItemElement],
+                    [file.ProjectItemElement]
+                )
+                
+            if folder_pos + 1 < siblings.Count then
+                merge_folders_if_needed(siblings.[folder_pos], siblings.[folder_pos + 1], siblings)
+                
             project.ProjectRootElement.Save()
             
     let move_file_down(project: Project, file: FileTreeFile) : unit =
@@ -48,66 +75,76 @@ module Operations =
             siblings.RemoveAt(folder_pos)
             siblings.Insert(folder_pos + 1, File file)
             
-            let parent = file.ProjectItemElement.Parent
-            let next_sibling_proj = file.ProjectItemElement.NextSibling
-            parent.RemoveChild(file.ProjectItemElement)
-            parent.InsertAfterChild(file.ProjectItemElement, next_sibling_proj)
+            let swapped_with = siblings.[folder_pos]
+            match swapped_with with
+            | Folder other_folder ->
+                swap_files_in_project(
+                    [file.ProjectItemElement],
+                    other_folder.EnumerateFiles() |> Seq.map _.ProjectItemElement
+                )
+            | File other_file ->
+                swap_files_in_project(
+                    [file.ProjectItemElement],
+                    [other_file.ProjectItemElement]
+                )
+                
+            if folder_pos >= 1 then
+                merge_folders_if_needed(siblings.[folder_pos - 1], siblings.[folder_pos], siblings)
+                
             project.ProjectRootElement.Save()
             
-    let move_folder_up(project: Project, folder: FileTreeFolder) : FileTreeFolder =
+    let move_folder_up(project: Project, folder: FileTreeFolder) : unit =
         let siblings = folder.Parent.Children
-        let files = folder.EnumerateFiles() |> Array.ofSeq
         let folder_pos = siblings.IndexOf(Folder folder)
         
-        let mutable result_folder = folder
-        
-        if folder_pos > 0 && files.Length > 0 then
+        if folder_pos > 0 then
             siblings.RemoveAt(folder_pos)
-            if folder_pos > 1 then
-                match siblings.[folder_pos - 2] with
-                | Folder merge when merge.FullPath = folder.FullPath ->
-                    merge.Children.AddRange(folder.Children |> Seq.map _.WithParent(Parent.Folder merge))
-                    result_folder <- merge
-                | _ -> siblings.Insert(folder_pos - 1, Folder folder)
-            else
-                siblings.Insert(folder_pos - 1, Folder folder)
-            // todo: neighbors below might now need merging!
+            siblings.Insert(folder_pos - 1, Folder folder)
             
-            let first_file = files.[0]
-            let parent = first_file.ProjectItemElement.Parent
-            let previous_sibling_proj = first_file.ProjectItemElement.PreviousSibling
-            for file in files do
-                parent.RemoveChild(file.ProjectItemElement)
-                parent.InsertBeforeChild(file.ProjectItemElement, previous_sibling_proj)
-            project.ProjectRootElement.Save()
+            let swapped_with = siblings.[folder_pos]
+            match swapped_with with
+            | Folder other_folder ->
+                swap_files_in_project(
+                    other_folder.EnumerateFiles() |> Seq.map _.ProjectItemElement,
+                    folder.EnumerateFiles() |> Seq.map _.ProjectItemElement
+                )
+            | File other_file ->
+                swap_files_in_project(
+                    [other_file.ProjectItemElement],
+                    folder.EnumerateFiles() |> Seq.map _.ProjectItemElement
+                )
             
-        result_folder
-            
-    let move_folder_down(project: Project, folder: FileTreeFolder) : FileTreeFolder =
-        let siblings = folder.Parent.Children
-        let files = folder.EnumerateFiles() |> Array.ofSeq
-        let folder_pos = siblings.IndexOf(Folder folder)
-        
-        let mutable result_folder = folder
-        
-        if folder_pos + 1 < siblings.Count && files.Length > 0 then
-            siblings.RemoveAt(folder_pos)
+            if folder_pos >= 2 then
+                merge_folders_if_needed(siblings.[folder_pos - 1], siblings.[folder_pos - 2], siblings)
             if folder_pos + 1 < siblings.Count then
-                match siblings.[folder_pos + 1] with
-                | Folder merge when merge.FullPath = folder.FullPath ->
-                    merge.Children.InsertRange(0, folder.Children |> Seq.map _.WithParent(Parent.Folder merge))
-                    result_folder <- merge
-                | _ -> siblings.Insert(folder_pos + 1, Folder folder)
-            else
-                siblings.Insert(folder_pos + 1, Folder folder)
-            // todo: neighbors above might now need merging!
-            
-            let last_file = files.[files.Length - 1]
-            let parent = last_file.ProjectItemElement.Parent
-            let next_sibling_proj = last_file.ProjectItemElement.NextSibling
-            for file in files |> Seq.rev do
-                parent.RemoveChild(file.ProjectItemElement)
-                parent.InsertAfterChild(file.ProjectItemElement, next_sibling_proj)
+                merge_folders_if_needed(siblings.[folder_pos], siblings.[folder_pos + 1], siblings)
+                
             project.ProjectRootElement.Save()
             
-        result_folder
+    let move_folder_down(project: Project, folder: FileTreeFolder) : unit =
+        let siblings = folder.Parent.Children
+        let folder_pos = siblings.IndexOf(Folder folder)
+        
+        if folder_pos + 1 < siblings.Count then
+            siblings.RemoveAt(folder_pos)
+            siblings.Insert(folder_pos + 1, Folder folder)
+            
+            let swapped_with = siblings.[folder_pos]
+            match swapped_with with
+            | Folder other_folder ->
+                swap_files_in_project(
+                    folder.EnumerateFiles() |> Seq.map _.ProjectItemElement,
+                    other_folder.EnumerateFiles() |> Seq.map _.ProjectItemElement
+                )
+            | File other_file ->
+                swap_files_in_project(
+                    folder.EnumerateFiles() |> Seq.map _.ProjectItemElement,
+                    [other_file.ProjectItemElement]
+                )
+            
+            if folder_pos + 2 < siblings.Count then
+                merge_folders_if_needed(siblings.[folder_pos + 1], siblings.[folder_pos + 2], siblings)
+            if folder_pos >= 1 then
+                merge_folders_if_needed(siblings.[folder_pos - 1], siblings.[folder_pos], siblings)
+                
+            project.ProjectRootElement.Save()

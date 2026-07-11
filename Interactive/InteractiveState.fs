@@ -160,12 +160,12 @@ module InteractiveState =
         match state.Selected with
         | Selection.Solution _ -> ()
         | Selection.Project _ -> () // todo: reorder projects?
-        | Selection.Folder folder -> state.Selected <- Selection.Folder(move_folder_up(folder.ParentProject, folder))
+        | Selection.Folder folder -> move_folder_up(folder.ParentProject, folder)
         | Selection.File file -> move_file_up(file.ParentProject, file)
         
     let move_selection_down(state: InteractiveState) : unit =
         match state.Selected with
         | Selection.Solution _ -> ()
         | Selection.Project _ -> () // todo: reorder projects?
-        | Selection.Folder folder -> state.Selected <- Selection.Folder(move_folder_down(folder.ParentProject, folder))
+        | Selection.Folder folder -> move_folder_down(folder.ParentProject, folder)
         | Selection.File file -> move_file_down(file.ParentProject, file)
