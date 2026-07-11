@@ -41,33 +41,27 @@ module Interactive =
             let alt = if input.Modifiers &&& ConsoleModifiers.Alt = ConsoleModifiers.Alt then "A-" else ""
             state.Buffer <- state.Buffer + sprintf "<%s%s>" alt key
             
-    let dispatch_shell_command(state: InteractiveState, command: string) : unit =
-        let selection_path =
-            match state.Selected with
-            | Selection.Solution solution -> sprintf "%A" solution.FullPath
-            | Selection.Project project -> sprintf "%A" project.FullPath
-            | Selection.Folder folder -> sprintf "%A" folder.FullPath
-            | Selection.File file -> sprintf "%A" file.FullPath
+    let inline apply_substitutions(state: InteractiveState, command: string) : string =
+        command
+            .Replace("$$", '\uFFFD'.ToString())
+            .Replace("$SOLUTION", state.Solution.FullPath)
+            .Replace("$PROJECT", match state.Selected.ParentProject with Some project -> project.FullPath | None -> "")
+            .Replace("$", state.Selected.FullPath)
+            .Replace('\uFFFD', '$')
             
-        let inline apply_substitutions(command: string) : string =
-            command
-                .Replace("$$", '\uFFFD'.ToString())
-                .Replace("$SOLUTION", state.Solution.FullPath)
-                .Replace("$PROJECT", state.Solution.FullPath)
-                .Replace("$", selection_path)
-                .Replace('\uFFFD', '$')
+    let dispatch_shell_command(state: InteractiveState, command: string) : unit =
             
         let shell, args = 
 
             if OperatingSystem.IsWindows() then 
                 "cmd.exe",
                 "/c " +
-                apply_substitutions(command)
+                apply_substitutions(state, command)
                     
             else 
                 "/bin/sh",
                 "-c \"" +
-                apply_substitutions(command)
+                apply_substitutions(state, command)
                 + "\""
 
         let start_info = ProcessStartInfo(shell, args)
@@ -84,7 +78,9 @@ module Interactive =
             Console.ReadKey(true) |> ignore
             
     let dispatch_internal_command(state: InteractiveState, command: string) : unit =
-        match command with
+        let split = command.Split(" ", 2, StringSplitOptions.TrimEntries)
+        let args = apply_substitutions(state, if split.Length < 2 then "" else split[1])
+        match split.[0] with
         | "q" | "q!" -> state.Running <- false
         | "up" -> state.Selected <- InteractiveState.navigate_up(state)
         | "down" -> state.Selected <- InteractiveState.navigate_down(state)
@@ -92,7 +88,15 @@ module Interactive =
         | "collapse" -> InteractiveState.collapse_selected(state)
         | "move_up" -> InteractiveState.move_selection_up(state)
         | "move_down" -> InteractiveState.move_selection_down(state)
+        | "echo" -> state.StatusLine <- args
         | "delete" -> ()
+        | "add" ->
+            match state.Selected.ParentProject, state.Selected.ToParent() with
+            | Some project, Some parent ->
+                match Operations.add_file(project, parent, args) with
+                | Ok() -> state.StatusLine <- "Created file."
+                | Error reason -> state.StatusLine <- reason
+            | _ -> ()
         | _ -> ()
             
     let consume_buffer(state: InteractiveState, shorthand: string, target: string) : unit =

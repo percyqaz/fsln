@@ -1,31 +1,103 @@
 namespace fsln
 
+open System
 open System.IO
 open Microsoft.Build.Construction
 open fsln
 
 module Operations =
     
-    let insert_below(project: Project, existing_file: FileTreeFile, name: string) : unit =
-        // todo: slashes in the file name should create folders
-        // todo: if the file already exists, do nothing
-        let name = name.Replace('\\', Path.AltDirectorySeparatorChar).Replace("..", "").Replace("//", "")
-        // todo: review this path.combine on windows vs unix
-        let added_item_full_path = Path.Combine(Path.get_directory_name(existing_file.FullPath), name)
-        let added_item_relative_path =
-            added_item_full_path
-                .Replace(Path.get_directory_name(project.FullPath) + Path.AltDirectorySeparatorChar.ToString(), "")
-                .Replace('/', '\\')
+    let inline private validate_name(name: string) : bool =
+        name.Trim().TrimEnd('.').Replace("..", "") = name
+        && String.forall (fun c -> Char.IsAsciiLetterOrDigit(c) || c = '.' || c = '_' || c = ' ') name
+    
+    let rec private resolve_path(parent: Parent, parts: string list) : Result<Parent * string, string> =
+        match parts with
+        | [name] ->
+            if validate_name(name) then Ok(parent, name)
+            else Error "Invalid file name"
+        | path_segment :: remaining ->
+            if path_segment = ".." then
+                match parent with
+                | Parent.Folder folder -> resolve_path(folder.Parent, remaining)
+                | Parent.Project _ -> Error "Path is outside project!"
                 
-        let added_item = project.ProjectRootElement.AddItem("Compile", added_item_relative_path)
-        let parent = added_item.Parent
-        parent.RemoveChild(added_item)
-        
-        parent.InsertAfterChild(added_item, existing_file.ProjectItemElement)
-        let siblings = existing_file.Parent.Children
-        siblings.Insert(siblings.IndexOf(File existing_file) + 1, File { Name = name; FullPath = added_item_full_path; ProjectItemElement = added_item; Parent = existing_file.Parent })
-        File.Create(added_item_full_path).Dispose()
-        project.ProjectRootElement.Save()
+            elif validate_name(path_segment) then
+                let existing_folder =
+                    parent.Children
+                    |> Seq.tryPick (function FileTreeEntry.Folder folder when folder.Name = path_segment -> Some folder | _ -> None)
+                match existing_folder with
+                | Some folder -> resolve_path(Parent.Folder folder, remaining)
+                | None ->
+                    let new_path =
+                        match parent with
+                        | Parent.Folder folder -> folder.FullPath
+                        | Parent.Project project -> Path.get_directory_name(project.FullPath)
+                        + "/" + path_segment
+
+                    let new_folder : FileTreeFolder = { Name = path_segment; Parent = parent; FullPath = new_path; Children = ResizeArray() }
+                    resolve_path(Parent.Folder new_folder, remaining)
+            else
+                Error "Invalid path segment"
+                
+        | [] -> Error "empty parts passed!"
+                
+    let add_file (project: Project, parent: Parent, path: string) : Result<unit, string> =
+        let directory_parts =
+            path.Replace('\\', Path.AltDirectorySeparatorChar).Split(Path.AltDirectorySeparatorChar, StringSplitOptions.None)
+            |> List.ofArray
+        match resolve_path(parent, directory_parts) with
+        | Error reason -> Error reason
+        | Ok(new_parent, file_name) ->
+            let new_parent_full_path =
+                match new_parent with
+                | Parent.Folder folder -> folder.FullPath
+                | Parent.Project project -> Path.get_directory_name(project.FullPath)
+
+            let added_item_full_path = Path.Combine(new_parent_full_path, file_name)
+            if new_parent.Children |> Seq.exists(function FileTreeEntry.File file when file.Name = file_name -> true | _ -> false) || File.Exists(added_item_full_path) then
+                Error "File already exists"
+            else
+                
+            let added_item_relative_path =
+                added_item_full_path
+                    .Replace(Path.get_directory_name(project.FullPath) + Path.AltDirectorySeparatorChar.ToString(), "")
+                    .Replace('/', '\\')
+                    
+            let rec find_lowest_neighbor(p: Parent) : ProjectItemElement =
+                let children = p.Children
+                if children.Count = 0 then
+                    match p with
+                    | Parent.Project _ -> failwith "adding to a project with no files, should be impossible?"
+                    | Parent.Folder folder -> find_lowest_neighbor(folder.Parent)
+                else
+                    let last_child = children.[children.Count - 1]
+                    match last_child with
+                    | FileTreeEntry.File file -> file.ProjectItemElement
+                    | FileTreeEntry.Folder folder -> find_lowest_neighbor(Parent.Folder folder)
+                    
+            let inline insert_after_neighbor(neighbor: ProjectItemElement) : ProjectItemElement =
+                let added_item = project.ProjectRootElement.AddItem("Compile", added_item_relative_path)
+                let parent = added_item.Parent
+                parent.RemoveChild(added_item)
+                parent.InsertAfterChild(added_item, neighbor)
+                added_item
+                
+            let rec connect_to_tree(parent: Parent, item: FileTreeEntry) =
+                let children = parent.Children
+                let parent_needs_connecting = children.Count = 0
+                children.Add(item)
+                if parent_needs_connecting then
+                    match parent with
+                    | Parent.Project _ -> failwith "adding to a project with no files, should be impossible?"
+                    | Parent.Folder folder -> connect_to_tree(folder.Parent, Folder folder)
+                
+            let added_project_item = insert_after_neighbor(find_lowest_neighbor(new_parent))
+            let tree_file = File { Name = file_name; FullPath = added_item_full_path; ProjectItemElement = added_project_item; Parent = new_parent }
+            File.Create(added_item_full_path).Dispose()
+            project.ProjectRootElement.Save()
+            connect_to_tree(new_parent, tree_file)
+            Ok()
         
     let inline private swap_files_in_project(above_files: ProjectItemElement seq, below_files: ProjectItemElement seq) : unit =
         let first_above_file = Seq.head above_files
