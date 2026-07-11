@@ -36,6 +36,8 @@ type InteractiveDisplay(state: InteractiveState) =
     let LEAF_CONNECTOR = "└─"
     [<Literal>]
     let VERTICAL_CONNECTOR = "│ "
+    [<Literal>]
+    let EMPTY_CONNECTOR = "  "
     
     member inline private this.RenderFile(indent: string, icolor: int, is_selected: bool, is_last: bool, file: FileTreeFile) : unit =
         let tree_marker = if is_last then LEAF_CONNECTOR else BRANCH_CONNECTOR
@@ -75,7 +77,7 @@ type InteractiveDisplay(state: InteractiveState) =
                     let inner_color = if is_selected then 0x888844 else 0x222222
                     let mutable i = 0
                     while i < folder.Children.Count do
-                        display_entry(indent + (if is_last then " " else VERTICAL_CONNECTOR.ForeColor(icolor)), inner_color, i + 1 = folder.Children.Count, folder.Children.[i])
+                        display_entry(indent + (if is_last then EMPTY_CONNECTOR else VERTICAL_CONNECTOR.ForeColor(icolor)), inner_color, i + 1 = folder.Children.Count, folder.Children.[i])
                         i <- i + 1
                 
         let inline display_project (project: Project) : unit =
