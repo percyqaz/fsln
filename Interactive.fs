@@ -1,8 +1,32 @@
 namespace fsln
 
 open System
+open System.Drawing
 open System.Diagnostics
+open System.Runtime.CompilerServices
 open fsln.Operations
+
+type AnsiStringExtensions =
+    
+    [<Extension>]
+    static member ForeColor(text: string, foreground: Color) : string =
+        sprintf "\u001b[38;2;%d;%d;%dm%s\u001b[39m" foreground.R foreground.G foreground.B text
+        
+    [<Extension>]
+    static member ForeColor(text: string, foreground: int) : string =
+        text.ForeColor(Color.FromArgb(foreground))
+        
+    [<Extension>]
+    static member BackColor(text: string, background: Color) : string =
+        sprintf "\u001b[48;2;%d;%d;%dm%s\u001b[49m" background.R background.G background.B text
+        
+    [<Extension>]
+    static member BackColor(text: string, background: int) : string =
+        text.BackColor(Color.FromArgb(background))
+        
+    [<Extension>]
+    static member Bold(text: string) : string =
+        sprintf "\u001b[1m%s\u001b[22m" text
 
 module Interactive =
     
@@ -35,6 +59,9 @@ module Interactive =
                 StatusLine = ""
                 Keymap = ResizeArray()
             }
+            
+        member this.Bind(string: string, target: string) : unit =
+            this.Keymap.Insert(0, (string, target))
         
     let private previous<'t>(siblings: ResizeArray<'t>, child: 't) : 't option =
         let index = siblings.IndexOf(child)
@@ -59,18 +86,16 @@ module Interactive =
         else
             Selection.Project project
             
-    let rec find_next_in_tree(state: State, current: FileTreeEntry) : Selection =
+    let rec find_next_in_tree(state: State, current: FileTreeEntry) : Selection option =
         match next(current.Parent.Children, current) with
-        | Some (File file_below) -> Selection.File file_below
-        | Some (Folder folder_below) -> Selection.Folder folder_below
+        | Some (File file_below) -> Some(Selection.File(file_below))
+        | Some (Folder folder_below) -> Some(Selection.Folder(folder_below))
         | None ->
             match current.Parent with
             | Parent.Project project -> 
                 match next(state.Solution.Projects, project) with
-                | Some project_below -> Selection.Project project_below
-                // todo: None/Some pattern instead of returning current selection here, so this function can be used
-                // todo: rn this function is only correct when `current` is what's selected
-                | None -> state.Selected
+                | Some project_below -> Some(Selection.Project(project_below))
+                | None -> None
             | Parent.Folder folder ->
                 find_next_in_tree(state, Folder folder)
             
@@ -114,8 +139,8 @@ module Interactive =
                 | File child_file -> Selection.File child_file
                 | Folder child_folder -> Selection.Folder child_folder
             else
-                find_next_in_tree(state, Folder folder)
-        | Selection.File file -> find_next_in_tree(state, File file)
+                find_next_in_tree(state, Folder folder) |> Option.defaultValue state.Selected
+        | Selection.File file -> find_next_in_tree(state, File file) |> Option.defaultValue state.Selected
         
     let navigate_out(state: State) : Selection =
         match state.Selected with
@@ -175,9 +200,9 @@ module Interactive =
                         print_fs(depth + 1, e)
                     
         if state.Selected = Selection.Solution state.Solution then
-            printfn "[*][%s]" state.Solution.Name
+            Console.WriteLine($" * {state.Solution.Name.Bold()}")
         else
-            printfn "[*] %s" state.Solution.Name
+            Console.WriteLine($" * {state.Solution.Name}")
             
         for project in state.Solution.Projects do
             
@@ -248,16 +273,27 @@ module Interactive =
             | Selection.Folder folder -> sprintf "%A" folder.FullPath
             | Selection.File file -> sprintf "%A" file.FullPath
             
-        let shell, first_arg = if OperatingSystem.IsWindows() then "cmd.exe", "/c" else "/bin/sh", "-c"
-
-        let args =
-            first_arg + " \"" +
+        let inline apply_substitutions(command: string) : string =
             command
                 .Replace("$$", '\uFFFD'.ToString())
+                .Replace("$SOLUTION", state.Solution.FullPath)
+                .Replace("$PROJECT", state.Solution.FullPath)
                 .Replace("$", selection_path)
                 .Replace('\uFFFD', '$')
-                .Replace("\"", "\\\"")
-            + "\""
+            
+        let shell, args = 
+
+            if OperatingSystem.IsWindows() then 
+                "cmd.exe",
+                "/c " +
+                apply_substitutions(command)
+                    
+            else 
+                "/bin/sh",
+                "-c \"" +
+                apply_substitutions(command)
+                + "\""
+
         let start_info = ProcessStartInfo(shell, args)
         start_info.UseShellExecute <- false
         start_info.CreateNoWindow <- false
@@ -284,28 +320,31 @@ module Interactive =
         | _ -> ()
             
     let consume_buffer(state: State, shorthand: string, target: string) : unit =
-        if state.Buffer.StartsWith shorthand then
+        if state.Buffer.StartsWith(shorthand) then
             state.Buffer <- target + state.Buffer.Substring(shorthand.Length)
+            
+    let register_default_binds(state: State) : unit =
+        state.Bind("<Esc>", ":q<Enter>")
+        
+        state.Bind(".", ":!echo $<Enter>")
+        state.Bind("<Enter>", ":!nvim $<Enter>")
+        state.Bind("<A-k>", ":move_up<Enter>")
+        state.Bind("<A-j>", ":move_down<Enter>")
+        state.Bind("l", ":expand<Enter>")
+        state.Bind("k", ":up<Enter>")
+        state.Bind("j", ":down<Enter>")
+        state.Bind("h", ":collapse<Enter>")
+        
+        state.Bind("<A-Up>", "<A-k>")
+        state.Bind("<A-Down>", "<A-j>")
+        state.Bind("<Right>", "l")
+        state.Bind("<Up>", "k")
+        state.Bind("<Down>", "j")
+        state.Bind("<Left>", "h")
         
     let dispatch_keybindings(state: State) : unit =
-        
-        consume_buffer(state, "<Left>", "h")
-        consume_buffer(state, "<Down>", "j")
-        consume_buffer(state, "<Up>", "k")
-        consume_buffer(state, "<Right>", "l")
-        consume_buffer(state, "<A-Down>", "<A-j>")
-        consume_buffer(state, "<A-Up>", "<A-k>")
-        
-        consume_buffer(state, "h", ":collapse<Enter>")
-        consume_buffer(state, "j", ":down<Enter>")
-        consume_buffer(state, "k", ":up<Enter>")
-        consume_buffer(state, "l", ":expand<Enter>")
-        consume_buffer(state, "<A-j>", ":move_down<Enter>")
-        consume_buffer(state, "<A-k>", ":move_up<Enter>")
-        consume_buffer(state, "<Enter>", ":!vim $<Enter>")
-        consume_buffer(state, ".", ":!echo $<Enter>")
-        
-        consume_buffer(state, "<Esc>", ":q<Enter>")
+        for bind_source, bind_target in state.Keymap do
+            consume_buffer(state, bind_source, bind_target)
             
     let handle_input(state: State) : unit =
         key_to_buffer(state)
@@ -326,6 +365,7 @@ module Interactive =
     
     let loop (solution: Solution) : unit =
         let state = State.Create(solution)
+        register_default_binds(state)
         while state.Running do
             Console.Clear()
             render(state)
