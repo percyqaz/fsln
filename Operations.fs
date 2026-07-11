@@ -5,21 +5,6 @@ open fsln
 
 module Operations =
     
-    let render(solution: Solution) : unit =
-        let rec print_fs (depth: int, entry: FileTreeEntry) =
-            match entry with
-            | File x -> printfn "  %s%s" (String.replicate depth "  ") x.Name
-            | Folder f ->
-                printfn "  %s%s/" (String.replicate depth "  ") f.Name
-                for e in f.Children do
-                    print_fs(depth + 1, e)
-                    
-        printfn "[*] %s" solution.Name
-        for project in solution.Projects do
-            printfn " [>] %s" project.Name
-            for f in project.Children do
-                print_fs(0, f)
-    
     let insert_below(project: Project, existing_file: FileTreeFile, name: string) : unit =
         // todo: slashes in the file name should create folders
         // todo: if the file already exists, do nothing

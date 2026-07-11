@@ -23,6 +23,7 @@ let walk_tree_specific_filetypes(targets: string array) : string option =
 
 [<EntryPoint>]
 let main (argv: string array) : int =
+    ignore argv
     let sln =
         walk_tree_specific_filetypes [|".slnx"; ".sln"|]
     match sln with
@@ -30,8 +31,5 @@ let main (argv: string array) : int =
     | Some solution_path ->
         let solution = SolutionLoader.read_solution_file(solution_path)
         Directory.SetCurrentDirectory(Path.GetDirectoryName(solution_path))
-        if argv.Length > 0 && argv.[0] = "-p" then
-            Operations.render solution
-        else
-            Interactive.loop solution
+        Interactive.loop solution
         0

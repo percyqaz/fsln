@@ -72,7 +72,7 @@ module Interactive =
 
         let start_info = ProcessStartInfo(shell, args)
         start_info.UseShellExecute <- false
-        start_info.CreateNoWindow <- true
+        start_info.CreateNoWindow <- false
         
         Console.Clear()
         let proc = Process.Start(start_info)
