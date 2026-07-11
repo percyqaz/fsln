@@ -12,7 +12,7 @@ type Parent =
         match this with
         | Project p -> p.Children
         | Folder f -> f.Children
-    member this.AddChild(child: FileTreeEntry) =
+    member this.AddChild(child: FileTreeEntry) : unit =
         this.Children.Add(child.WithParent(this))
 
 and FileTreeFile =

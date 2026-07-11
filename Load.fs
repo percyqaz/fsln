@@ -75,7 +75,7 @@ module SolutionLoader =
                         let file_name = Path.GetFileName(file_path)
                         merge_trees(Parent.Project project, relative_path_segments, file_name, file_path, property)
                     else
-                        failwithf "'%s' is outside the project folder for '%s'!" file_path project_containing_folder
+                        printfn "'%s' is outside the project folder for '%s'!" file_path project_containing_folder
                         
         project
     
