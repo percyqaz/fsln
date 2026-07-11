@@ -177,13 +177,13 @@ module InteractiveState =
     let move_selection_up(state: InteractiveState) : unit =
         match state.Selected with
         | Selection.Solution _ -> ()
-        | Selection.Project _ -> () // todo: reorder projects?
+        | Selection.Project _ -> ()
         | Selection.Folder folder -> move_folder_up(folder.ParentProject, folder)
         | Selection.File file -> move_file_up(file.ParentProject, file)
         
     let move_selection_down(state: InteractiveState) : unit =
         match state.Selected with
         | Selection.Solution _ -> ()
-        | Selection.Project _ -> () // todo: reorder projects?
+        | Selection.Project _ -> ()
         | Selection.Folder folder -> move_folder_down(folder.ParentProject, folder)
         | Selection.File file -> move_file_down(file.ParentProject, file)

@@ -41,10 +41,47 @@ module Operations =
                 Error "Invalid path segment"
                 
         | [] -> Error "empty parts passed!"
+                    
+    let rec private find_lowest_neighbor(parent: Parent) : ProjectItemElement =
+        let children = parent.Children
+        if children.Count = 0 then
+            match parent with
+            | Parent.Project _ -> failwith "impossible"
+            | Parent.Folder folder -> find_lowest_neighbor(folder.Parent)
+        else
+            let last_child = children.[children.Count - 1]
+            match last_child with
+            | FileTreeEntry.File file -> file.ProjectItemElement
+            | FileTreeEntry.Folder folder -> find_lowest_neighbor(Parent.Folder folder)
+            
+    let inline private insert_after_neighbor(project: Project, relative_path: string, neighbor: ProjectItemElement) : ProjectItemElement =
+        let added_item = project.ProjectRootElement.AddItem("Compile", relative_path)
+        let parent = added_item.Parent
+        parent.RemoveChild(added_item)
+        parent.InsertAfterChild(added_item, neighbor)
+        added_item
+                
+    let rec private connect_to_tree(parent: Parent, item: FileTreeEntry) : unit =
+        let children = parent.Children
+        let parent_needs_connecting = children.Count = 0
+        children.Add(item)
+        if parent_needs_connecting then
+            match parent with
+            | Parent.Project _ -> failwith "impossible"
+            | Parent.Folder folder -> connect_to_tree(folder.Parent, Folder folder)
+            
+    let rec private remove_from_tree(parent: Parent, item: FileTreeEntry) : unit =
+        let children = parent.Children
+        children.Remove(item) |> ignore
+        let parent_needs_removing = children.Count = 0
+        if parent_needs_removing then
+            match parent with
+            | Parent.Project _ -> failwith "impossible"
+            | Parent.Folder folder -> remove_from_tree(folder.Parent, Folder folder)
                 
     let add_file (project: Project, parent: Parent, path: string) : Result<unit, string> =
         let directory_parts =
-            path.Replace('\\', Path.AltDirectorySeparatorChar).Split(Path.AltDirectorySeparatorChar, StringSplitOptions.None)
+            path.Replace('\\', '/').Split('/', StringSplitOptions.None)
             |> List.ofArray
         match resolve_path(parent, directory_parts) with
         | Error reason -> Error reason
@@ -54,7 +91,7 @@ module Operations =
                 | Parent.Folder folder -> folder.FullPath
                 | Parent.Project project -> Path.get_directory_name(project.FullPath)
 
-            let added_item_full_path = Path.Combine(new_parent_full_path, file_name)
+            let added_item_full_path = new_parent_full_path + "/" + file_name
             if new_parent.Children |> Seq.exists(function FileTreeEntry.File file when file.Name = file_name -> true | _ -> false) || File.Exists(added_item_full_path) then
                 Error "File already exists"
             else
@@ -63,40 +100,47 @@ module Operations =
                 added_item_full_path
                     .Replace(Path.get_directory_name(project.FullPath) + Path.AltDirectorySeparatorChar.ToString(), "")
                     .Replace('/', '\\')
-                    
-            let rec find_lowest_neighbor(p: Parent) : ProjectItemElement =
-                let children = p.Children
-                if children.Count = 0 then
-                    match p with
-                    | Parent.Project _ -> failwith "adding to a project with no files, should be impossible?"
-                    | Parent.Folder folder -> find_lowest_neighbor(folder.Parent)
-                else
-                    let last_child = children.[children.Count - 1]
-                    match last_child with
-                    | FileTreeEntry.File file -> file.ProjectItemElement
-                    | FileTreeEntry.Folder folder -> find_lowest_neighbor(Parent.Folder folder)
-                    
-            let inline insert_after_neighbor(neighbor: ProjectItemElement) : ProjectItemElement =
-                let added_item = project.ProjectRootElement.AddItem("Compile", added_item_relative_path)
-                let parent = added_item.Parent
-                parent.RemoveChild(added_item)
-                parent.InsertAfterChild(added_item, neighbor)
-                added_item
                 
-            let rec connect_to_tree(parent: Parent, item: FileTreeEntry) =
-                let children = parent.Children
-                let parent_needs_connecting = children.Count = 0
-                children.Add(item)
-                if parent_needs_connecting then
-                    match parent with
-                    | Parent.Project _ -> failwith "adding to a project with no files, should be impossible?"
-                    | Parent.Folder folder -> connect_to_tree(folder.Parent, Folder folder)
-                
-            let added_project_item = insert_after_neighbor(find_lowest_neighbor(new_parent))
+            let added_project_item = insert_after_neighbor(project, added_item_relative_path, find_lowest_neighbor( new_parent))
             let tree_file = File { Name = file_name; FullPath = added_item_full_path; ProjectItemElement = added_project_item; Parent = new_parent }
             File.Create(added_item_full_path).Dispose()
             project.ProjectRootElement.Save()
             connect_to_tree(new_parent, tree_file)
+            Ok()
+            
+    let move_file (project: Project, original_file: FileTreeFile, path: string) : Result<unit, string> =
+        let directory_parts =
+            path.Replace('\\', '/').Split('/', StringSplitOptions.None)
+            |> List.ofArray
+        match resolve_path(original_file.Parent, directory_parts) with
+        | Error reason -> Error reason
+        | Ok(new_parent, file_name) ->
+            let new_parent_full_path =
+                match new_parent with
+                | Parent.Folder folder -> folder.FullPath
+                | Parent.Project project -> Path.get_directory_name(project.FullPath)
+
+            let moved_item_full_path = new_parent_full_path + "/" + file_name
+            if new_parent.Children |> Seq.exists(function FileTreeEntry.File file when file.Name = file_name -> true | _ -> false) || File.Exists(moved_item_full_path) then
+                Error "File already exists"
+            else
+                
+            let moved_item_relative_path =
+                moved_item_full_path
+                    .Replace(Path.get_directory_name(project.FullPath) + Path.AltDirectorySeparatorChar.ToString(), "")
+                    .Replace('/', '\\')
+                
+            let insertion_neighbor =
+                if new_parent = original_file.Parent then original_file.ProjectItemElement
+                else find_lowest_neighbor(new_parent)
+            let new_project_item = insert_after_neighbor(project, moved_item_relative_path, insertion_neighbor)
+            original_file.ProjectItemElement.Parent.RemoveChild(original_file.ProjectItemElement)
+            
+            let new_tree_file = File { Name = file_name; FullPath = moved_item_full_path; ProjectItemElement = new_project_item; Parent = new_parent }
+            File.Move(original_file.FullPath, moved_item_full_path)
+            project.ProjectRootElement.Save()
+            connect_to_tree(new_parent, new_tree_file)
+            remove_from_tree(original_file.Parent, File original_file)
             Ok()
         
     let inline private swap_files_in_project(above_files: ProjectItemElement seq, below_files: ProjectItemElement seq) : unit =

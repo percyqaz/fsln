@@ -31,11 +31,11 @@ type InteractiveDisplay(state: InteractiveState) =
     // todo: buffer the draw
     
     [<Literal>]
-    let BRANCH_CONNECTOR = "├"
+    let BRANCH_CONNECTOR = "├─"
     [<Literal>]
-    let LEAF_CONNECTOR = "└"
+    let LEAF_CONNECTOR = "└─"
     [<Literal>]
-    let VERTICAL_CONNECTOR = "│"
+    let VERTICAL_CONNECTOR = "│ "
     
     member inline private this.RenderFile(indent: string, icolor: int, is_selected: bool, is_last: bool, file: FileTreeFile) : unit =
         let tree_marker = if is_last then LEAF_CONNECTOR else BRANCH_CONNECTOR

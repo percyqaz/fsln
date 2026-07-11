@@ -94,7 +94,14 @@ module Interactive =
             match state.Selected.ParentProject, state.Selected.ToParent() with
             | Some project, Some parent ->
                 match Operations.add_file(project, parent, args) with
-                | Ok() -> state.StatusLine <- "Created file."
+                | Ok() -> state.StatusLine <- "Created file!"
+                | Error reason -> state.StatusLine <- reason
+            | _ -> ()
+        | "move" ->
+            match state.Selected with
+            | Selection.File file -> 
+                match Operations.move_file(file.ParentProject, file, args) with
+                | Ok() -> state.StatusLine <- "Moved file!"
                 | Error reason -> state.StatusLine <- reason
             | _ -> ()
         | _ -> ()
