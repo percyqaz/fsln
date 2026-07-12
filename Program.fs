@@ -42,5 +42,5 @@ let main (argv: string array) : int =
 // git mode, filter tree to just git changed files, keys to stage files, quick-commit, hotkey to show git log
 // run programs and parse their MSBuild-style output, ability to browse this list and hit enter to open editor on these files
 // use for: formatting tools, build errors
-// statusline, showing git branch and that's about it
+// status line, showing git branch and that's about it
 // auto-reload file tree if external modification detected, check every 2s

@@ -68,6 +68,15 @@ module Commands =
                 | Ok() -> state.StatusLine <- "Moved file!"
                 | Error reason -> state.StatusLine <- reason
             | _ -> ()
+        | "set" ->
+            let split = args.Split("=", 2, StringSplitOptions.TrimEntries)
+            let key, value = split.[0], if split.Length > 1 then split.[1] else ""
+            match state.Theme.Set(key, value) with
+            | Ok new_theme ->
+                state.Theme <- new_theme
+                state.StatusLine <- ""
+            | Error reason ->
+                state.StatusLine <- reason
         | _ -> ()
             
     let register_default_binds(state: InteractiveState) : unit =

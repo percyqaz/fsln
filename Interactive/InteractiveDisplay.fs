@@ -33,7 +33,7 @@ type InteractiveDisplay(state: InteractiveState) =
     member inline private this.RenderFile(indent: string, icolor: Color, is_selected: bool, is_last: bool, file: FileTreeFile) : unit =
         let tree_marker = if is_last then state.Theme.TreeConnectors.Leaf else state.Theme.TreeConnectors.Branch
         let indent = indent + tree_marker.ForeColor(icolor)
-        let line = sprintf "%c %s  " state.Theme.IconFile file.Name
+        let line = sprintf "%c %s  " state.Theme.IconFile (file.Name.ForeColor(state.Theme.ColorFile))
         Console.WriteLine(indent + if is_selected then line.BackColor(state.Theme.ColorSelection) else line)
             
     member inline private this.RenderFolder(indent: string, icolor: Color, is_selected: bool, is_expanded: bool, is_last: bool, folder: FileTreeFolder) : unit =
