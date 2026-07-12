@@ -8,10 +8,12 @@ open Microsoft.Build.Construction
 type Parent =
     | Project of Project
     | Folder of FileTreeFolder
+
     member this.Children =
         match this with
         | Project p -> p.Children
         | Folder f -> f.Children
+
     member this.AddChild(child: FileTreeEntry) : unit =
         this.Children.Add(child.WithParent(this))
 
@@ -22,12 +24,12 @@ and FileTreeFile =
         ProjectItemElement: ProjectItemElement
         Parent: Parent
     }
-    
-    member this.ParentProject : Project =
+
+    member this.ParentProject: Project =
         match this.Parent with
         | Parent.Folder parent_folder -> parent_folder.ParentProject
         | Parent.Project parent_project -> parent_project
-    
+
 and FileTreeFolder =
     {
         Name: string
@@ -35,7 +37,7 @@ and FileTreeFolder =
         Children: ResizeArray<FileTreeEntry>
         Parent: Parent
     }
-    
+
     member this.EnumerateFiles() : FileTreeFile seq =
         seq {
             for child in this.Children do
@@ -43,7 +45,7 @@ and FileTreeFolder =
                 | File file -> yield file
                 | Folder folder -> yield! folder.EnumerateFiles()
         }
-    
+
     member this.EnumerateSubfolders() : FileTreeFolder seq =
         seq {
             for child in this.Children do
@@ -53,8 +55,8 @@ and FileTreeFolder =
                     yield folder
                     yield! folder.EnumerateSubfolders()
         }
-        
-    member this.ParentProject : Project =
+
+    member this.ParentProject: Project =
         match this.Parent with
         | Parent.Folder parent_folder -> parent_folder.ParentProject
         | Parent.Project parent_project -> parent_project
@@ -62,15 +64,17 @@ and FileTreeFolder =
 and FileTreeEntry =
     | File of FileTreeFile
     | Folder of FileTreeFolder
+
     member this.Parent =
         match this with
         | File f -> f.Parent
         | Folder f -> f.Parent
+
     member this.WithParent(parent: Parent) : FileTreeEntry =
         match this with
         | File f -> File { f with Parent = parent }
         | Folder f -> Folder { f with Parent = parent }
-    
+
 and Project =
     {
         Name: string
@@ -78,7 +82,7 @@ and Project =
         ProjectRootElement: ProjectRootElement
         Children: ResizeArray<FileTreeEntry>
     }
-    
+
     member this.EnumerateFiles() : FileTreeFile seq =
         seq {
             for child in this.Children do
@@ -86,7 +90,7 @@ and Project =
                 | File file -> yield file
                 | Folder folder -> yield! folder.EnumerateFiles()
         }
-        
+
     member this.EnumerateSubfolders() : FileTreeFolder seq =
         seq {
             for child in this.Children do
@@ -96,7 +100,7 @@ and Project =
                     yield folder
                     yield! folder.EnumerateSubfolders()
         }
-    
+
 type Solution =
     {
         Name: string
