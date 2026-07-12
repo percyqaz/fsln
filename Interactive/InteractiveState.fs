@@ -36,6 +36,7 @@ type InteractiveState =
         mutable Buffer: string
         mutable StatusLine: string
         Keymap: ResizeArray<string * string>
+        mutable Theme: Theme
     }
     member this.IsExpanded(folder: FileTreeFolder) : bool = this.Expanded.Contains folder.FullPath
     member this.IsExpanded(project: Project) : bool = this.Expanded.Contains project.FullPath
@@ -48,6 +49,7 @@ type InteractiveState =
             Buffer = ""
             StatusLine = ""
             Keymap = ResizeArray()
+            Theme = Theme.Default
         }
         
     member this.Bind(string: string, target: string) : unit =

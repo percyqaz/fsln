@@ -30,36 +30,27 @@ type InteractiveDisplay(state: InteractiveState) =
 
     // todo: buffer the draw
     
-    [<Literal>]
-    let BRANCH_CONNECTOR = "├─"
-    [<Literal>]
-    let LEAF_CONNECTOR = "└─"
-    [<Literal>]
-    let VERTICAL_CONNECTOR = "│ "
-    [<Literal>]
-    let EMPTY_CONNECTOR = "  "
-    
     member inline private this.RenderFile(indent: string, icolor: int, is_selected: bool, is_last: bool, file: FileTreeFile) : unit =
-        let tree_marker = if is_last then LEAF_CONNECTOR else BRANCH_CONNECTOR
+        let tree_marker = if is_last then state.Theme.TreeConnectors.Leaf else state.Theme.TreeConnectors.Branch
         let indent = indent + tree_marker.ForeColor(icolor)
-        let line = sprintf "* %s  " file.Name
+        let line = sprintf "%c %s  " state.Theme.IconFile file.Name
         Console.WriteLine(indent + if is_selected then line.BackColor(0x333300) else line)
             
     member inline private this.RenderFolder(indent: string, icolor: int, is_selected: bool, is_expanded: bool, is_last: bool, folder: FileTreeFolder) : unit =
-        let tree_marker = if is_last then LEAF_CONNECTOR else BRANCH_CONNECTOR
+        let tree_marker = if is_last then state.Theme.TreeConnectors.Leaf else state.Theme.TreeConnectors.Branch
         let indent = indent + tree_marker.ForeColor(icolor)
         let expand_marker = if is_expanded then "-" else "+"
-        let line = sprintf "■ %s %s" ((folder.Name + "/").ForeColor(0xFFFF88).Bold()) (expand_marker.ForeColor(0x444488))
+        let line = sprintf "%c %s %s" state.Theme.IconFolder ((folder.Name + "/").ForeColor(0xFFFF88).Bold()) (expand_marker.ForeColor(0x444488))
         Console.WriteLine(indent + if is_selected then line.BackColor(0x333300) else line)
             
     member inline private this.RenderProject(is_selected: bool, is_expanded: bool, project: Project) : unit =
         let expand_marker = if is_expanded then "-" else "+"
-        let line = sprintf "■ %s %s" (project.Name.ForeColor(0xFF00FF).Bold()) (expand_marker.ForeColor(0x444488))
+        let line = sprintf "%c %s %s" state.Theme.IconProject (project.Name.ForeColor(0xFF00FF).Bold()) (expand_marker.ForeColor(0x444488))
         Console.WriteLine(if is_selected then line.BackColor(0x333300) else line)
             
     member inline private this.RenderSolution(solution: Solution) : unit =
         let is_selected = state.Selected = Selection.Solution solution
-        let line = sprintf " %s " (solution.Name.ForeColor(0xFFDDFF).Bold())
+        let line = sprintf "%c %s " state.Theme.IconSolution (solution.Name.ForeColor(0xFFDDFF).Bold())
         Console.WriteLine(if is_selected then line.BackColor(0x333300) else line)
     
     member this.RenderTree() : unit =
@@ -77,7 +68,7 @@ type InteractiveDisplay(state: InteractiveState) =
                     let inner_color = if is_selected then 0x888844 else 0x222222
                     let mutable i = 0
                     while i < folder.Children.Count do
-                        display_entry(indent + (if is_last then EMPTY_CONNECTOR else VERTICAL_CONNECTOR.ForeColor(icolor)), inner_color, i + 1 = folder.Children.Count, folder.Children.[i])
+                        display_entry(indent + (if is_last then state.Theme.TreeConnectors.Empty else state.Theme.TreeConnectors.Vertical.ForeColor(icolor)), inner_color, i + 1 = folder.Children.Count, folder.Children.[i])
                         i <- i + 1
                 
         let inline display_project (project: Project) : unit =

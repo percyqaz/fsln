@@ -9,6 +9,7 @@
     <Compile Include="FileTree.fs" />
     <Compile Include="Load.fs" />
     <Compile Include="Operations.fs" />
+    <Compile Include="Interactive\Theme.fs" />
     <Compile Include="Interactive\InteractiveState.fs" />
     <Compile Include="Interactive\InteractiveDisplay.fs" />
     <Compile Include="Interactive\Interactive.fs" />
