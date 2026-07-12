@@ -1,9 +1,9 @@
-namespace fsln
+namespace FSLN
 
 open System
 open System.IO
 open Microsoft.Build.Construction
-open fsln
+open FSLN
 
 module Path =
 

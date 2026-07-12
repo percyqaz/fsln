@@ -1,4 +1,4 @@
-namespace fsln
+namespace FSLN
 
 open System
 open System.Drawing

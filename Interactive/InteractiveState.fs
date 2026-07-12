@@ -1,6 +1,6 @@
-namespace fsln
+namespace FSLN
 
-open fsln.Operations
+open FSLN.Operations
 
 [<RequireQualifiedAccess>]
 type Selection =

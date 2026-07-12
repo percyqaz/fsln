@@ -1,4 +1,4 @@
-namespace fsln
+namespace FSLN
 
 module Interactive =
 

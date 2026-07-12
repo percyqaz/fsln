@@ -1,5 +1,5 @@
 open System.IO
-open fsln
+open FSLN
 
 let walk_tree_specific_file (target: string) : string option =
     let mutable current_path = Path.GetFullPath(".")
