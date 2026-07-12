@@ -139,6 +139,7 @@ module Operations =
                         Parent = new_parent
                     }
 
+            Directory.CreateDirectory(Path.GetDirectoryName(added_item_full_path)) |> ignore
             File.Create(added_item_full_path).Dispose()
             project.ProjectRootElement.Save()
             connect_to_tree(new_parent, tree_file)
@@ -195,6 +196,7 @@ module Operations =
                         Parent = new_parent
                     }
 
+            Directory.CreateDirectory(Path.GetDirectoryName(moved_item_full_path)) |> ignore
             File.Move(original_file.FullPath, moved_item_full_path)
             project.ProjectRootElement.Save()
             connect_to_tree(new_parent, new_tree_file)
