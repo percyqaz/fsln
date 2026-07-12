@@ -35,7 +35,6 @@ let main (argv: string array) : int =
         0
         
 // todo list:
-// command allowing rebinding while fsln is running
 // read config from .fsln, higher directories first then more local ones to stack configs together
 // file search showing a filtered view
 // git information, run git status and annotate the tree with it

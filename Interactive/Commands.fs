@@ -39,6 +39,7 @@ module Commands =
             Console.ReadKey(true) |> ignore
             state.StatusLine <- sprintf "(%i)" proc.ExitCode
         elif Console.GetCursorPosition() <> struct(0, 0) then
+            Console.WriteLine("Press any key to return".ForeColor(0x666666))
             Console.ReadKey(true) |> ignore
             
     let dispatch_internal_command(state: InteractiveState, command: string) : unit =
@@ -77,6 +78,15 @@ module Commands =
                 state.StatusLine <- ""
             | Error reason ->
                 state.StatusLine <- reason
+        | "bind" ->
+            let split = args.Split("=", 2, StringSplitOptions.TrimEntries)
+            let source, target = split.[0], if split.Length > 1 then split.[1] else ""
+            if source.Length > 0 && target.Length > 0 && source <> target then
+                state.Bind(source, target)
+                state.StatusLine <- "Binding set."
+            else
+                state.StatusLine <- "Invalid binding."
+            
         | _ -> ()
             
     let register_default_binds(state: InteractiveState) : unit =
@@ -100,4 +110,5 @@ module Commands =
         state.Bind("<A-Down>", "<A-j>")
         
         state.Bind("a", "lj")
-        // todo: [ ] to go next/previous sibling
+        state.Bind("g", ":!git l<Enter>")
+        // todo: [ ] to jump next/previous sibling

@@ -53,7 +53,8 @@ type InteractiveState =
         }
         
     member this.Bind(string: string, target: string) : unit =
-        this.Keymap.Insert(0, (string, target))
+        let inline special(s: string) = s.Replace("<", "＜").Replace(">", "＞")
+        this.Keymap.Insert(0, (special string, special target))
         
 module InteractiveState =
         
