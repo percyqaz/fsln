@@ -15,9 +15,7 @@ module InputBuffer =
     let ENTER = special("Enter")
     let ESC = special("Esc")
 
-    let key_to_buffer (state: InteractiveState) : unit =
-        let input = Console.ReadKey(true)
-
+    let add_input_to_buffer (input: ConsoleKeyInfo, state: InteractiveState) : unit =
         if input.Key = ConsoleKey.Backspace then
             if state.Buffer.EndsWith(GT_LOOKALIKE) then
                 let p = state.Buffer.LastIndexOf(LT_LOOKALIKE)

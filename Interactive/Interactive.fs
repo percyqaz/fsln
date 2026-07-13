@@ -10,12 +10,20 @@ module Interactive =
         InputBuffer.dispatch_keybindings(state)
 
         let render = InteractiveDisplay(state)
+        let input_thread = InputThread()
+        input_thread.Start()
 
         System.Console.Write("\u001b[?1049h")
 
         while state.Running do
             render.Redraw()
-            InputBuffer.key_to_buffer(state)
-            InputBuffer.dispatch_keybindings(state)
+
+            match input_thread.TryReadKey(5000) with
+            | true, input ->
+                InputBuffer.add_input_to_buffer(input, state)
+                InputBuffer.dispatch_keybindings(state)
+            | false, _ -> () // do background work every 5 seconds of idle
 
         System.Console.Write("\u001b[?1049l")
+
+        input_thread.Dispose()
