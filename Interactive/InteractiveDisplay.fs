@@ -34,7 +34,7 @@ type ScreenBuffer(height: int) =
     let lines = ResizeArray()
     let mutable cursor = 0
     let mutable scroll_position = 0
-    
+
     member val ScrollOff = 6
     member val LinesBelow = 1
     member val Height = height
@@ -53,10 +53,13 @@ type ScreenBuffer(height: int) =
         let sb = StringBuilder().Append("\u001b[H")
 
         let top_of_requested_view = max 0 (cursor - this.ScrollOff)
+
         if top_of_requested_view < scroll_position then
             scroll_position <- top_of_requested_view
 
-        let bottom_of_requested_view = min (lines.Count - 1 + this.LinesBelow) (cursor + this.ScrollOff)
+        let bottom_of_requested_view =
+            min (lines.Count - 1 + this.LinesBelow) (cursor + this.ScrollOff)
+
         if bottom_of_requested_view - this.Height + 1 > scroll_position then
             scroll_position <- bottom_of_requested_view - this.Height + 1
 
