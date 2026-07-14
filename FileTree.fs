@@ -2,8 +2,6 @@ namespace FSLN
 
 open Microsoft.Build.Construction
 
-// https://git-scm.com/docs/git-status
-
 [<RequireQualifiedAccess>]
 type Parent =
     | Project of Project

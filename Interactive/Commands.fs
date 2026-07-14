@@ -29,9 +29,6 @@ module Commands =
                 "/bin/sh", "-c \"" + apply_substitutions(state, command) + "\""
 
         let start_info = ProcessStartInfo(shell, args)
-        start_info.UseShellExecute <- false
-        start_info.CreateNoWindow <- false
-
         Console.Clear()
         let proc = Process.Start(start_info)
         proc.WaitForExit()

@@ -34,6 +34,7 @@ type InteractiveState =
     {
         mutable Running: bool
         Solution: Solution
+        mutable GitStatus: GitStatus option
         mutable Expanded: Set<string>
         mutable Selected: Selection
         mutable Buffer: string
@@ -51,6 +52,7 @@ type InteractiveState =
         {
             Running = true
             Solution = solution
+            GitStatus = GitStatus.Fetch()
             Expanded = Set.empty
             Selected = Selection.Solution(solution)
             Buffer = ""

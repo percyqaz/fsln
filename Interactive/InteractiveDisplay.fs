@@ -187,5 +187,28 @@ type InteractiveDisplay(state: InteractiveState) =
     member this.Redraw() : unit =
         this.RenderTree()
         view.Draw()
-        Console.WriteLine(state.StatusLine.ClearRestOfLine())
+
+        let git_status =
+            match state.GitStatus with
+            | Some status ->
+                let inline ab lead pos (col: int) =
+                    match status.AheadBehind |> Option.map pos |> Option.filter((<>) 0) with
+                    | Some count -> (sprintf " %c%i" lead count).ForeColor(col)
+                    | None -> ""
+
+                let dirty_files =
+                    if status.WorkingTreeDirty > 0 then sprintf " *%i" status.WorkingTreeDirty
+                    elif status.IndexDirty > 0 then " *"
+                    else ""
+
+                sprintf
+                    "[%s%s%s]%s "
+                    (status.Branch.ForeColor(0x8888ff).Bold())
+                    (ab '+' fst 0x88ff88)
+                    (ab '-' snd 0xff8888)
+                    (dirty_files.ForeColor(0x666666))
+
+            | None -> ""
+
+        Console.WriteLine(git_status + state.StatusLine.ClearRestOfLine())
         Console.Write(state.Buffer.ForeColor(0x88FF88).Bold().ClearRestOfLine())

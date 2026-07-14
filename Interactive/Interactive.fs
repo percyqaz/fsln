@@ -22,7 +22,7 @@ module Interactive =
             | true, input ->
                 InputBuffer.add_input_to_buffer(input, state)
                 InputBuffer.dispatch_keybindings(state)
-            | false, _ -> () // do background work every 5 seconds of idle
+            | false, _ -> state.GitStatus <- GitStatus.Fetch()
 
         System.Console.Write("\u001b[?1049l")
 
