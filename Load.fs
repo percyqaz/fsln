@@ -5,15 +5,6 @@ open System.IO
 open Microsoft.Build.Construction
 open FSLN
 
-module Path =
-
-    let normalise (path: string) : string =
-        Uri(Path.GetFullPath(path)).LocalPath.Replace('\\', Path.AltDirectorySeparatorChar)
-
-    let get_directory_name (path: string) : string =
-        Path.GetDirectoryName(path).Replace('\\', Path.AltDirectorySeparatorChar)
-
-
 module SolutionLoader =
 
     let read_project_file (name: string, project_path: string) : Project =

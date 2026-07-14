@@ -51,6 +51,7 @@ type GitFileStatus = { Index: GitStatusType; WorkingTree: GitStatusType }
 
 type GitStatus =
     {
+        RootPath: string
         Branch: string
         Upstream: string option
         AheadBehind: (int * int) option
@@ -59,7 +60,7 @@ type GitStatus =
         WorkingTreeDirty: int
     }
 
-    static member Parse(raw: string) : GitStatus =
+    static member Parse(raw: string, root_path: string) : GitStatus =
         let mutable branch_head = ""
         let mutable branch_upstream: string option = None
         let mutable branch_ab: (int * int) option = None
@@ -76,7 +77,7 @@ type GitStatus =
             let index = GitStatusType.FromChar(line.[1].[0])
             let working_tree = GitStatusType.FromChar(line.[1].[1])
             let file = line.[8]
-            files <- files.Add(file, { Index = index; WorkingTree = working_tree })
+            files <- files.Add(root_path + "/" + file, { Index = index; WorkingTree = working_tree })
 
         let inline parse_line (line: string array) : unit =
             match line.[0] with
@@ -91,6 +92,7 @@ type GitStatus =
             parse_line(line_parts)
 
         {
+            RootPath = root_path
             Branch = branch_head
             Upstream = branch_upstream
             AheadBehind = branch_ab
@@ -100,14 +102,18 @@ type GitStatus =
         }
 
     static member Fetch() : GitStatus option =
-        let start_info =
-            ProcessStartInfo(
-                "git",
-                "status --ignore-submodules --no-renames --porcelain=v2 -z -b",
-                RedirectStandardOutput = true
-            )
+        match Path.find_git_repo() with
+        | None -> None
+        | Some path_to_repo ->
 
-        let proc = Process.Start(start_info)
-        let output = proc.StandardOutput.ReadToEnd()
-        proc.WaitForExit()
-        if proc.ExitCode = 0 then Some(GitStatus.Parse(output)) else None
+            let start_info =
+                ProcessStartInfo(
+                    "git",
+                    "status --ignore-submodules --no-renames --porcelain=v2 -z -b",
+                    RedirectStandardOutput = true
+                )
+
+            let proc = Process.Start(start_info)
+            let output = proc.StandardOutput.ReadToEnd()
+            proc.WaitForExit()
+            if proc.ExitCode = 0 then Some(GitStatus.Parse(output, path_to_repo.Replace('\\', '/'))) else None

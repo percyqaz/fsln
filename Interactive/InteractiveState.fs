@@ -48,6 +48,17 @@ type InteractiveState =
     member this.IsExpanded(project: Project) : bool =
         this.Expanded.Contains(project.FullPath)
 
+    member this.GitFileStatus(file: string) : GitFileStatus =
+        let inline default_status () =
+            { Index = Unchanged; WorkingTree = Unchanged }
+
+        match this.GitStatus with
+        | Some status ->
+            match status.Files.TryGetValue(file) with
+            | true, result -> result
+            | false, _ -> default_status()
+        | None -> default_status()
+
     static member Create(solution: Solution) : InteractiveState =
         {
             Running = true

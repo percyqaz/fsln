@@ -6,6 +6,7 @@
     <ToolCommandName>fsln</ToolCommandName>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Path.fs" />
     <Compile Include="FileTree.fs" />
     <Compile Include="GitStatus.fs" />
     <Compile Include="Load.fs" />

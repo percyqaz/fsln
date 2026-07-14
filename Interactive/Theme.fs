@@ -51,6 +51,8 @@ type ExpandMarkers =
 
         Ok { Open = split.[0]; Closed = split.[1] }
 
+type ColorsGit = { Added: Color; Modified: Color; Deleted: Color }
+
 type Theme =
     {
         TreeConnectors: TreeConnectors
@@ -59,12 +61,15 @@ type Theme =
         IconFolder: char
         IconProject: char
         IconSolution: char
+        IconGitWorkingTreeDirty: char
         ColorExpandIcon: Color
         ColorFile: Color
         ColorFolder: Color
         ColorProject: Color
         ColorSolution: Color
         ColorSelection: Color
+        ColorsGit: ColorsGit
+        ColorGitWorkingTreeDirty: Color
         ColorConnectorsDefault: Color
         ColorConnectorsFolder: Color
         ColorConnectorsProject: Color
@@ -84,12 +89,20 @@ type Theme =
             IconFolder = '■'
             IconProject = '■'
             IconSolution = '■'
-            ColorExpandIcon = Color.FromArgb(0x444488)
+            IconGitWorkingTreeDirty = '*'
+            ColorExpandIcon = Color.FromArgb(0x444466)
             ColorFile = Color.FromArgb(0xdddddd)
             ColorFolder = Color.FromArgb(0xffff66)
             ColorProject = Color.FromArgb(0xdd00ff)
             ColorSolution = Color.FromArgb(0xaa99ff)
             ColorSelection = Color.FromArgb(0x333300)
+            ColorsGit =
+                {
+                    Added = Color.FromArgb(0x88ff88)
+                    Modified = Color.FromArgb(0x88ffff)
+                    Deleted = Color.FromArgb(0xff8888)
+                }
+            ColorGitWorkingTreeDirty = Color.FromArgb(0x444444)
             ColorConnectorsDefault = Color.FromArgb(0x222222)
             ColorConnectorsFolder = Color.FromArgb(0x888844)
             ColorConnectorsProject = Color.FromArgb(0x664488)
