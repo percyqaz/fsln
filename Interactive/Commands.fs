@@ -29,7 +29,7 @@ module Commands =
                 "/bin/sh", "-c \"" + apply_substitutions(state, command) + "\""
 
         let start_info = ProcessStartInfo(shell, args)
-        Console.Clear()
+        Console.Write("\u001b[?1049l\u001b[47h\u001b[2J\u001b[H")
         let proc = Process.Start(start_info)
         proc.WaitForExit()
 
@@ -39,6 +39,8 @@ module Commands =
         elif Console.GetCursorPosition() <> struct (0, 0) then
             Console.WriteLine("Press any key to return".ForeColor(0x666666))
             Console.ReadKey(true) |> ignore
+
+        Console.Write("\u001b[47l\u001b[?1049h")
 
     let dispatch_internal_command (state: InteractiveState, command: string) : unit =
         let split = command.Split(" ", 2, StringSplitOptions.TrimEntries)
