@@ -14,11 +14,13 @@ type InputThread() =
         Thread(fun () ->
             while true do
                 ignore(key_in.WaitOne())
+
                 try
                     let key = Console.ReadKey(true)
                     lock LOCK_OBJ (fun () -> read_key <- key)
                     ignore(key_out.Set())
-                with _ -> ()
+                with _ ->
+                    ()
         )
 
     member this.Start() : unit =

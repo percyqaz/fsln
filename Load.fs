@@ -20,18 +20,12 @@ module SolutionLoader =
                 Children = ResizeArray<FileTreeEntry>()
             }
 
-        let is_subdirectory (parent_path: string, child_path: string) =
-            let parent_path =
-                if Path.EndsInDirectorySeparator(parent_path) then
-                    parent_path
-                else
-                    parent_path + Path.AltDirectorySeparatorChar.ToString()
+        let inline ensure_trailing_slash (path: string) : string =
+            if path.EndsWith("/") then path else path + "/"
 
-            let child_path =
-                if Path.EndsInDirectorySeparator(child_path) then
-                    child_path
-                else
-                    child_path + Path.AltDirectorySeparatorChar.ToString()
+        let is_subdirectory (parent_path: string, child_path: string) =
+            let parent_path = ensure_trailing_slash(parent_path)
+            let child_path = ensure_trailing_slash(child_path)
 
             child_path <> parent_path && child_path.StartsWith(parent_path)
 

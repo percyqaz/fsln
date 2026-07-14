@@ -1,5 +1,7 @@
 namespace FSLN
 
+open System
+
 module Interactive =
 
     let loop (config: string seq, solution: Solution) : unit =
@@ -13,7 +15,7 @@ module Interactive =
         let input_thread = InputThread()
         input_thread.Start()
 
-        System.Console.Write("\u001b[?1049h")
+        Console.Write("\u001b[?1049h")
 
         while state.Running do
             render.Redraw()
@@ -24,6 +26,6 @@ module Interactive =
                 InputBuffer.dispatch_keybindings(state)
             | false, _ -> state.GitStatus <- GitStatus.Fetch()
 
-        System.Console.Write("\u001b[?1049l")
+        Console.Write("\u001b[?1049l")
 
         input_thread.Dispose()

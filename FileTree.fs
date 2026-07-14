@@ -15,6 +15,22 @@ type Parent =
     member this.AddChild(child: FileTreeEntry) : unit =
         this.Children.Add(child.WithParent(this))
 
+    member this.TryFindFile(name: string) : FileTreeFile option =
+        this.Children
+        |> Seq.tryPick(
+            function
+            | FileTreeEntry.File file when file.Name = name -> Some(file)
+            | _ -> None
+        )
+
+    member this.TryFindFolder(name: string) : FileTreeFolder option =
+        this.Children
+        |> Seq.tryPick(
+            function
+            | FileTreeEntry.Folder folder when folder.Name = name -> Some(folder)
+            | _ -> None
+        )
+
 and FileTreeFile =
     {
         Name: string

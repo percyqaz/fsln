@@ -21,16 +21,8 @@ module Operations =
                 | Parent.Project _ -> Error "Path is outside project!"
 
             elif validate_name(path_segment) then
-                let existing_folder =
-                    parent.Children
-                    |> Seq.tryPick(
-                        function
-                        | FileTreeEntry.Folder folder when folder.Name = path_segment -> Some folder
-                        | _ -> None
-                    )
-
-                match existing_folder with
-                | Some folder -> resolve_path(Parent.Folder(folder), remaining)
+                match parent.TryFindFolder(path_segment) with
+                | Some existing_folder -> resolve_path(Parent.Folder(existing_folder), remaining)
                 | None ->
                     let new_path =
                         match parent with
@@ -110,15 +102,7 @@ module Operations =
 
             let added_item_full_path = new_parent_full_path + "/" + file_name
 
-            if
-                new_parent.Children
-                |> Seq.exists(
-                    function
-                    | FileTreeEntry.File file when file.Name = file_name -> true
-                    | _ -> false
-                )
-                || File.Exists(added_item_full_path)
-            then
+            if new_parent.TryFindFile(file_name).IsSome || File.Exists(added_item_full_path) then
                 Error "File already exists"
             else
 
@@ -159,15 +143,7 @@ module Operations =
 
             let moved_item_full_path = new_parent_full_path + "/" + file_name
 
-            if
-                new_parent.Children
-                |> Seq.exists(
-                    function
-                    | FileTreeEntry.File file when file.Name = file_name -> true
-                    | _ -> false
-                )
-                || File.Exists(moved_item_full_path)
-            then
+            if new_parent.TryFindFile(file_name).IsSome || File.Exists(moved_item_full_path) then
                 Error "File already exists"
             else
 
