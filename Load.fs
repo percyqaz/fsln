@@ -18,6 +18,7 @@ module SolutionLoader =
                 FullPath = project_path
                 ProjectRootElement = project_file
                 Children = ResizeArray<FileTreeEntry>()
+                LastSeenUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
             }
 
         let inline ensure_trailing_slash (path: string) : string =

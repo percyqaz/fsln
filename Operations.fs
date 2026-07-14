@@ -125,7 +125,7 @@ module Operations =
 
             Directory.CreateDirectory(Path.GetDirectoryName(added_item_full_path)) |> ignore
             File.Create(added_item_full_path).Dispose()
-            project.ProjectRootElement.Save()
+            project.Save()
             connect_to_tree(new_parent, tree_file)
             Ok()
 
@@ -174,7 +174,7 @@ module Operations =
 
             Directory.CreateDirectory(Path.GetDirectoryName(moved_item_full_path)) |> ignore
             File.Move(original_file.FullPath, moved_item_full_path)
-            project.ProjectRootElement.Save()
+            project.Save()
             connect_to_tree(new_parent, new_tree_file)
             remove_from_tree(original_file.Parent, File original_file)
             Ok()
@@ -219,7 +219,7 @@ module Operations =
             if folder_pos + 1 < siblings.Count then
                 merge_folders_if_needed(siblings.[folder_pos], siblings.[folder_pos + 1], siblings)
 
-            project.ProjectRootElement.Save()
+            project.Save()
 
     let move_file_down (project: Project, file: FileTreeFile) : unit =
         let siblings = file.Parent.Children
@@ -242,7 +242,7 @@ module Operations =
             if folder_pos >= 1 then
                 merge_folders_if_needed(siblings.[folder_pos - 1], siblings.[folder_pos], siblings)
 
-            project.ProjectRootElement.Save()
+            project.Save()
 
     let move_folder_up (project: Project, folder: FileTreeFolder) : unit =
         let siblings = folder.Parent.Children
@@ -272,7 +272,7 @@ module Operations =
             if folder_pos + 1 < siblings.Count then
                 merge_folders_if_needed(siblings.[folder_pos], siblings.[folder_pos + 1], siblings)
 
-            project.ProjectRootElement.Save()
+            project.Save()
 
     let move_folder_down (project: Project, folder: FileTreeFolder) : unit =
         let siblings = folder.Parent.Children
@@ -302,4 +302,4 @@ module Operations =
             if folder_pos >= 1 then
                 merge_folders_if_needed(siblings.[folder_pos - 1], siblings.[folder_pos], siblings)
 
-            project.ProjectRootElement.Save()
+            project.Save()

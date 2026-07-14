@@ -15,8 +15,8 @@
     <Compile Include="Interactive\InteractiveState.fs" />
     <Compile Include="Interactive\InteractiveDisplay.fs" />
     <Compile Include="Interactive\Commands.fs" />
-    <Compile Include="Interactive\InputThread.fs" />
     <Compile Include="Interactive\InputBuffer.fs" />
+    <Compile Include="Interactive\InputThread.fs" />
     <Compile Include="Interactive\Interactive.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

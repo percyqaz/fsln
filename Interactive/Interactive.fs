@@ -24,7 +24,12 @@ module Interactive =
             | true, input ->
                 InputBuffer.add_input_to_buffer(input, state)
                 InputBuffer.dispatch_keybindings(state)
-            | false, _ -> state.GitStatus <- GitStatus.Fetch()
+            | false, _ ->
+                state.GitStatus <- GitStatus.Fetch()
+
+                if state.Solution.Projects |> Seq.exists _.HasExternalChange() then
+                    state.Solution <- SolutionLoader.read_solution_file(state.Solution.FullPath)
+                    state.Selected <- Selection.Solution(state.Solution)
 
         Console.Write("\u001b[?1049l")
 

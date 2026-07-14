@@ -1,5 +1,7 @@
 namespace FSLN
 
+open System
+open System.IO
 open Microsoft.Build.Construction
 
 [<RequireQualifiedAccess>]
@@ -95,7 +97,18 @@ and Project =
         FullPath: string
         ProjectRootElement: ProjectRootElement
         Children: ResizeArray<FileTreeEntry>
+        mutable LastSeenUtc: int64
     }
+
+    member this.Save() : unit =
+        this.ProjectRootElement.Save()
+        this.LastSeenUtc <- DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+
+    member this.HasExternalChange() : bool =
+        let last_write =
+            DateTimeOffset(File.GetLastWriteTimeUtc(this.FullPath)).ToUnixTimeSeconds()
+
+        last_write > this.LastSeenUtc
 
     member this.EnumerateFiles() : FileTreeFile seq =
         seq {

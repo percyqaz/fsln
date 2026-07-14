@@ -33,7 +33,7 @@ type Selection =
 type InteractiveState =
     {
         mutable Running: bool
-        Solution: Solution
+        mutable Solution: Solution
         mutable GitStatus: GitStatus option
         mutable Expanded: Set<string>
         mutable Selected: Selection
