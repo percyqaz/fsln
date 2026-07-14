@@ -33,9 +33,6 @@ let main (argv: string array) : int =
 
 // todo list:
 // file search showing a filtered view
-// git information, run git status and annotate the tree with it
-// status line, showing git branch + is dirty + commits ahead of remote
-// auto-reload file tree if external modification detected, check every 2s
 // -- GIT MODE --, filter tree to just git changed files, keys to stage files, quick-commit, hotkey to show git log
 // -- ERROR MODE --, run programs and parse their MSBuild-style output, ability to browse this list and hit enter to open editor on these files
 // -- FILE MODE --, general purpose file tree browser ? or too big an endeavour
