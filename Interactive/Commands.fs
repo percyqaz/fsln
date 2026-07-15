@@ -117,5 +117,4 @@ module Commands =
         state.Bind("<A-Down>", "<A-j>")
 
         state.Bind("a", "lj")
-        state.Bind("g", ":!git l<Enter>")
 // todo: [ ] to jump next/previous sibling
